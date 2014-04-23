@@ -3,6 +3,7 @@
 temp/
 tennis_copy.sh
 no_upload/
+no_upload*
 
 # Compiled source #
 #################
