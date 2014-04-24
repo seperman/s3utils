@@ -21,6 +21,25 @@ except:
     import logging as the_logging
 
 
+
+def connectit(fn):
+    def wrapped(*args, **kwargs):
+        result = "Err"
+
+        try:
+            if not args[0].conn:
+                args[0].connect()
+            
+            result = fn(*args, **kwargs)
+
+        finally:
+            args[0].disconnect()
+
+        return result
+
+    return wrapped
+
+
 class S3utils(object):
 
     def __init__(
@@ -38,7 +57,7 @@ class S3utils(object):
         self.MEDIA_ROOT = MEDIA_ROOT
         self.MEDIA_ROOT_BASE = MEDIA_ROOT_BASE
         self.GO_S3_DEBUG_LEVEL = GO_S3_DEBUG_LEVEL
-        self.__k = None
+        self.conn = None
 
         self.logger = the_logging.getLogger(__name__)
         
@@ -54,6 +73,7 @@ class S3utils(object):
             print (msg)
     
 
+
     def connect(self):
         """establishes the connection"""
 
@@ -61,25 +81,27 @@ class S3utils(object):
 
         self.bucket = self.conn.get_bucket(self.AWS_STORAGE_BUCKET_NAME)
 
-        self.__k = Key(self.bucket)
+        self.k = Key(self.bucket)
 
 
 
     def disconnect(self):
         """closes the connection"""
         
-        self.bucket.connection.connection.close() 
+        self.bucket.connection.connection.close()
+        self.conn = None
 
 
+    @connectit
     def mkdir(self, target_folder):
         # extension = "_$folder$";
         # s3.putObject("MyBucket", "MyFolder"+ extension, new ByteArrayInputStream(new byte[0]), null); 
         self.printv( "Making direcoty: %s" % target_folder )
         # return 0
         try:
-            self.__k.key = re.sub(r"^/|/$", "", target_folder) + "/"
-            self.__k.set_contents_from_string(None)
-            self.__k.close()
+            self.k.key = re.sub(r"^/|/$", "", target_folder) + "/"
+            self.k.set_contents_from_string(None)
+            self.k.close()
         except:
             self.logger.error("Unable to create the folder: %s" % target_folder, exc_info=True)
             print ("Unable to create the folder: %s" % target_folder)
@@ -94,11 +116,11 @@ class S3utils(object):
 
         try:
 
-            self.__k.key = target_file   #setting the path (key) of file in the container
-            self.__k.set_contents_from_filename(local_file)  #grabs the contents from local_file address. Note that it loads the whole file into memory
+            self.k.key = target_file   #setting the path (key) of file in the container
+            self.k.set_contents_from_filename(local_file)  #grabs the contents from local_file address. Note that it loads the whole file into memory
             self.logger.info("uploaded to s3: %s" % target_file)  
-            self.__k.set_acl(acl)  #setting the file permissions
-            self.__k.close()  #not sure if it is needed. Somewhere I read it is recommended.
+            self.k.set_acl(acl)  #setting the file permissions
+            self.k.close()  #not sure if it is needed. Somewhere I read it is recommended.
 
             #if it is supposed to delete the local file after uploading
             if del_after_upload:
@@ -115,6 +137,7 @@ class S3utils(object):
             return False
 
 
+    @connectit
     def cp(self, local_path, target_path, acl='public-read', del_after_upload=False):
         """ copies a file or folder from local to s3"""
 
@@ -173,12 +196,14 @@ class S3utils(object):
             return False
 
 
+    @connectit
     def mv(self, local_file, target_file, acl='public-read'):
         """moves the file to the S3 (deletes the local copy)"""
 
         self.cp(local_file, target_file, acl='public-read', del_after_upload=True)
 
 
+    @connectit
     def cp_cropduster_image(self, the_image_path, del_after_upload=False):
         """deals with cropduster images saving to S3"""
 
@@ -240,9 +265,9 @@ class S3utils(object):
 
         """
         
-        self.__k.key = target_file
+        self.k.key = target_file
 
-        the_grants = self.__k.get_acl().acl.grants    
+        the_grants = self.k.get_acl().acl.grants    
         
         grant_list = []
 
@@ -252,6 +277,7 @@ class S3utils(object):
         return grant_list
 
 
+    @connectit
     def chmod(self, target_file, acl='public-read'):
         """
         sets permissions for a file
@@ -263,12 +289,13 @@ class S3utils(object):
   
         """
 
-        self.__k.key = target_file   #setting the path (key) of file in the container
-        self.__k.set_acl(acl)  #setting the file permissions
-        self.__k.close()
+        self.k.key = target_file   #setting the path (key) of file in the container
+        self.k.set_acl(acl)  #setting the file permissions
+        self.k.close()
 
 
 
+    @connectit
     def ls(self, folder="", begin_from_file="", num=-1, get_grants=False):
         """
            gets the list of file names (keys) in a s3 folder
@@ -279,9 +306,11 @@ class S3utils(object):
            begin_from_file: which file to start from (key).
            This is usedful in case you are iterating over lists of files
         """
+        # import pdb
+        # pdb.set_trace()
 
         #S3 object key can't start with /
-        folder = re.sub(r"/$", "", folder)
+        folder = re.sub(r"^/", "", folder)
 
         bucket_files = self.bucket.list(prefix=folder, marker=begin_from_file)
 
