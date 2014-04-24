@@ -38,6 +38,7 @@ class S3utils(object):
         self.MEDIA_ROOT = MEDIA_ROOT
         self.MEDIA_ROOT_BASE = MEDIA_ROOT_BASE
         self.GO_S3_DEBUG_LEVEL = GO_S3_DEBUG_LEVEL
+        self.__k = None
 
         self.logger = the_logging.getLogger(__name__)
         
@@ -47,6 +48,10 @@ class S3utils(object):
         else:
             self.logger.setLevel(the_logging.WARNING)
 
+
+    def printv(self, msg):
+        if self.GO_S3_DEBUG_LEVEL:
+            print (msg)
     
 
     def connect(self):
@@ -56,7 +61,7 @@ class S3utils(object):
 
         self.bucket = self.conn.get_bucket(self.AWS_STORAGE_BUCKET_NAME)
 
-        self.k = Key(self.bucket)
+        self.__k = Key(self.bucket)
 
 
 
@@ -66,32 +71,48 @@ class S3utils(object):
         self.bucket.connection.connection.close() 
 
 
+    def mkdir(self, target_folder):
+        # extension = "_$folder$";
+        # s3.putObject("MyBucket", "MyFolder"+ extension, new ByteArrayInputStream(new byte[0]), null); 
+        self.printv( "Making direcoty: %s" % target_folder )
+        # return 0
+        try:
+            self.__k.key = re.sub(r"^/|/$", "", target_folder) + "/"
+            self.__k.set_contents_from_string(None)
+            self.__k.close()
+        except:
+            self.logger.error("Unable to create the folder: %s" % target_folder, exc_info=True)
+            print ("Unable to create the folder: %s" % target_folder)
+
+
     def cp_file(self, local_file, target_file, acl='public-read', del_after_upload=False):
         """ copies a file to s3 """
 
-        print "----------------------"
-        print "copying"
-        print local_file
-        print target_file
-        # try:
-        #     self.k.key = target_file   #setting the path (key) of file in the container
-        #     self.k.set_contents_from_filename(local_file)  #grabs the contents from local_file address. Note that it loads the whole file into memory
-        #     self.logger.info("uploaded to s3: %s" % target_file)  
-        #     self.k.set_acl(acl)  #setting the file permissions
-        #     self.k.close()  #not sure if it is needed. Somewhere I read it is recommended.
+        self.printv( "copying %s to %s" % (local_file, target_file) )
 
-        #     #if it is supposed to delete the local file after uploading
-        #     if del_after_upload:
-        #         try:
-        #             os.remove(local_file)
-        #         except:
-        #             self.logger.error("Unable to delete the file: ", exc_info=True)
-        #             pass
+        # return 0
 
-        #     return True
-        # except:
-        #     self.logger.error(exc_info=True)
-        #     return False
+        try:
+
+            self.__k.key = target_file   #setting the path (key) of file in the container
+            self.__k.set_contents_from_filename(local_file)  #grabs the contents from local_file address. Note that it loads the whole file into memory
+            self.logger.info("uploaded to s3: %s" % target_file)  
+            self.__k.set_acl(acl)  #setting the file permissions
+            self.__k.close()  #not sure if it is needed. Somewhere I read it is recommended.
+
+            #if it is supposed to delete the local file after uploading
+            if del_after_upload:
+                try:
+                    os.remove(local_file)
+                except:
+                    self.logger.error("Unable to delete the file: ", exc_info=True)
+
+            return True
+
+        except:
+            print( "Error in writing to %s" % target_file )
+            self.logger.error("Error in writing to %s" % target_file, exc_info=True)
+            return False
 
 
     def cp(self, local_path, target_path, acl='public-read', del_after_upload=False):
@@ -112,21 +133,31 @@ class S3utils(object):
                                      os.path.basename(local_path)
                                      ) 
 
+            self.printv( "LOCAL PATH: %s" % local_path )
+
+            # re_base = re.compile(r"^"+local_path)  #matching for strings starting with local_path
+
+            first_local_root = None
+
             #if it is a folder
             if os.path.isdir(local_path):
 
-                re_base = re.compile(r"^"+local_path)  #matching for strings starting with local_path
-
                 for local_root, directories, files in os.walk(local_path):
+                    
+                    if not first_local_root:
+                        first_local_root = local_root 
 
                     #if folder is not empty
                     if files:
                         #iterating over the files in the folder
                         for a_file in files:
+                            # import pdb
+                            # pdb.set_trace()
+
                             self.cp_file(
                                         os.path.join(local_root, a_file),
                                         os.path.join(
-                                            re_base.sub(local_root, target_path),
+                                            target_path + local_root.replace(first_local_root, ""),
                                             a_file
                                             ),
                                         acl=acl,
@@ -134,9 +165,7 @@ class S3utils(object):
                                         )
                     #if folder is empty
                     else:
-                        #TODO: test copying an empty folder
-                        pass
-
+                        self.mkdir(target_path + local_root.replace(first_local_root, ""))
             else:
                 self.cp_file(local_path, target_path, acl=acl, del_after_upload=del_after_upload)
         else:
@@ -211,9 +240,9 @@ class S3utils(object):
 
         """
         
-        self.k.key = target_file
+        self.__k.key = target_file
 
-        the_grants = self.k.get_acl().acl.grants    
+        the_grants = self.__k.get_acl().acl.grants    
         
         grant_list = []
 
@@ -234,9 +263,9 @@ class S3utils(object):
   
         """
 
-        self.k.key = target_file   #setting the path (key) of file in the container
-        self.k.set_acl(acl)  #setting the file permissions
-        self.k.close()
+        self.__k.key = target_file   #setting the path (key) of file in the container
+        self.__k.set_acl(acl)  #setting the file permissions
+        self.__k.close()
 
 
 
