@@ -3,6 +3,8 @@ import re
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 
+from collections import OrderedDict
+
 try:
     from django.conf import settings
 except:
@@ -276,7 +278,7 @@ class S3utils(object):
 
         for grant in the_grants:
             if all_grant_data:
-                grant_list.append( {"permission":grant.permission, "name": grant.display_name, "email": grant.email_address, "id":grant.id} )
+                grant_list.append( {"permission":grant.permission, "name": grant.display_name, "email": grant.email_address, "id": grant.id} )
             else:
                 grant_list.append( {"permission":grant.permission, "name": grant.display_name} )
 
@@ -313,27 +315,28 @@ class S3utils(object):
            begin_from_file: which file to start from (key).
            This is usedful in case you are iterating over lists of files
         """
-        # import pdb
-        # pdb.set_trace()
 
         #S3 object key can't start with /
         folder = re.sub(r"^/", "", folder)
 
         bucket_files = self.bucket.list(prefix=folder, marker=begin_from_file)
 
-        list_of_files = []
 
 
         #in case listing grants
         if get_grants:
+            list_of_files = OrderedDict()
             for (i,v) in enumerate(bucket_files):
+                # import pdb
+                # pdb.set_trace()
                 # print v.name
-                file_tuple=(v.name, self.get_grants(v.name, all_grant_data) )
-                list_of_files.append(file_tuple)
+                file_info={v.name: self.get_grants(v.name, all_grant_data)}
+                list_of_files.update(file_info)
                 if i==num:
                     break
 
         else:
+            list_of_files = []
             for (i,v) in enumerate(bucket_files):
                 list_of_files.append(v.name)
                 if i==num:
