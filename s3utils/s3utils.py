@@ -252,7 +252,7 @@ class S3utils(object):
 
 
 
-    def get_grants(self, target_file):
+    def get_grants(self, target_file, all_grant_data):
         """ 
         returns grant permission, grant owner, grant owner email and grant id  as a list.
         It needs you to set k.key to a key on amazon (file path) before running this.
@@ -264,6 +264,9 @@ class S3utils(object):
         d. authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
 
         """
+
+        # import ipdb
+        # ipdb.set_trace()
         
         self.k.key = target_file
 
@@ -272,7 +275,11 @@ class S3utils(object):
         grant_list = []
 
         for grant in the_grants:
-            grant_list.append( (grant.permission, grant.display_name, grant.email_address, grant.id) )
+            if all_grant_data:
+                grant_list.append( {"permission":grant.permission, "name": grant.display_name, "email": grant.email_address, "id":grant.id} )
+            else:
+                grant_list.append( {"permission":grant.permission, "name": grant.display_name} )
+
 
         return grant_list
 
@@ -296,7 +303,7 @@ class S3utils(object):
 
 
     @connectit
-    def ls(self, folder="", begin_from_file="", num=-1, get_grants=False):
+    def ls(self, folder="", begin_from_file="", num=-1, get_grants=False, all_grant_data=False):
         """
            gets the list of file names (keys) in a s3 folder
            num: number of results to return, by default it returns all results.
@@ -320,8 +327,9 @@ class S3utils(object):
         #in case listing grants
         if get_grants:
             for (i,v) in enumerate(bucket_files):
-                file_dict={"name":v.name, "grants": self.get_grants(v.name),}
-                list_of_files.append(file_dict)
+                # print v.name
+                file_tuple=(v.name, self.get_grants(v.name, all_grant_data) )
+                list_of_files.append(file_tuple)
                 if i==num:
                     break
 
@@ -335,7 +343,7 @@ class S3utils(object):
 
 
 
-    def ll(self, folder="", begin_from_file="", num=-1):
+    def ll(self, folder="", begin_from_file="", num=-1, all_grant_data=False):
         """
            gets the list of file names (keys) in a s3 folder and the file permissions
            num: number of results to return, by default it returns all results.
@@ -345,7 +353,7 @@ class S3utils(object):
            begin_from_file: which file to start from (key).
            This is usedful in case you are iterating over lists of files
         """
-        return self.ls(folder="", begin_from_file="", num=-1, get_grants=True)
+        return self.ls(folder=folder, begin_from_file=begin_from_file, num=num, get_grants=True, all_grant_data=all_grant_data)
 
 
 
