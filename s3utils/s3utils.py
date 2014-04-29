@@ -15,13 +15,14 @@ except:
         AWS_STORAGE_BUCKET_NAME=""
         MEDIA_ROOT=""
         MEDIA_ROOT_BASE=""
-        GO_S3_DEBUG_LEVEL=0
+        S3UTILS_DEBUG_LEVEL=0
 
 # LOGGING
 try:
     from settings_logging import the_logging
 except:
     import logging as the_logging
+
 
 
 
@@ -72,7 +73,7 @@ class S3utils(object):
         AWS_STORAGE_BUCKET_NAME=getattr(settings,"AWS_STORAGE_BUCKET_NAME",""),
         MEDIA_ROOT=getattr(settings,"MEDIA_ROOT",""),
         MEDIA_ROOT_BASE=getattr(settings,"MEDIA_ROOT_BASE",""),
-        GO_S3_DEBUG_LEVEL=getattr(settings,"GO_S3_DEBUG_LEVEL",0),
+        S3UTILS_DEBUG_LEVEL=getattr(settings,"S3UTILS_DEBUG_LEVEL",0),
             ):
 
         self.AWS_ACCESS_KEY_ID = AWS_ACCESS_KEY_ID
@@ -80,7 +81,7 @@ class S3utils(object):
         self.AWS_STORAGE_BUCKET_NAME = AWS_STORAGE_BUCKET_NAME
         self.MEDIA_ROOT = MEDIA_ROOT
         self.MEDIA_ROOT_BASE = MEDIA_ROOT_BASE
-        self.GO_S3_DEBUG_LEVEL = GO_S3_DEBUG_LEVEL
+        self.S3UTILS_DEBUG_LEVEL = S3UTILS_DEBUG_LEVEL
         self.conn = None
         self.conn_cloudfront = None
 
@@ -88,23 +89,24 @@ class S3utils(object):
 
         self.list_of_files = None
         
-        #setting the logging level based on GO_S3_DEBUG_LEVEL
-        if (GO_S3_DEBUG_LEVEL==0):
+        #setting the logging level based on S3UTILS_DEBUG_LEVEL
+        if (S3UTILS_DEBUG_LEVEL==0):
             self.logger.setLevel(the_logging.ERROR)
         else:
-            self.logger.setLevel(the_logging.WARNING)
+            self.logger.setLevel(the_logging.INFO)
 
 
     def printv(self, msg):
-        if self.GO_S3_DEBUG_LEVEL:
+        if self.S3UTILS_DEBUG_LEVEL:
             print (msg)
+            self.logger.info(msg)
     
 
 
     def connect(self):
         """establishes the connection"""
 
-        self.conn = S3Connection(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.GO_S3_DEBUG_LEVEL)
+        self.conn = S3Connection(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.S3UTILS_DEBUG_LEVEL)
 
         self.bucket = self.conn.get_bucket(self.AWS_STORAGE_BUCKET_NAME)
 
@@ -122,7 +124,7 @@ class S3utils(object):
     def connect_cloudfront(self):
         """connects to cloud front which is more control than just S3"""
 
-        self.conn_cloudfront = connect_cloudfront(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.GO_S3_DEBUG_LEVEL)
+        self.conn_cloudfront = connect_cloudfront(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.S3UTILS_DEBUG_LEVEL)
 
 
 
@@ -141,10 +143,12 @@ class S3utils(object):
             print ("Unable to create the folder: %s" % target_folder)
 
 
-    def cp_file(self, local_file, target_file, acl='public-read', del_after_upload=False, overwrite=True):
+    def __cp_file(self, local_file, target_file, acl='public-read', del_after_upload=False, overwrite=True):
         """ copies a file to s3 """
 
-        self.printv( "copying %s to %s" % (local_file, target_file) )
+        action_word = "moving" if del_after_upload else "copying"
+
+        self.printv( "%s %s to %s" % (action_word, local_file, target_file) )
 
         if not overwrite and target_file in self.list_of_files:
             return "File Already Exists"
@@ -175,7 +179,63 @@ class S3utils(object):
 
     @connectit
     def cp(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False):
-        """ copies a file or folder from local to s3"""
+        """
+        Copies a file or folder from local to s3
+
+        Parameters
+        ----------        
+
+        local_path : string
+            Path to file or folder. Or if you want to copy only the contents of folder, add /* at the end of folder name
+
+        target_path : string
+            Target path on S3 bucket.
+
+        acl : string, optional
+            File permissions on S3. Default is public-read
+
+            options:        
+            a. private: Owner gets FULL_CONTROL. No one else has any access rights.
+            b. public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
+            c. public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
+            d. authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
+
+
+        del_after_upload : boolean, optional
+            delete the local file after uploading. This is effectively like moving the file.
+            You can use s3utils.mv instead of s3utils.cp to move files from local to S3.
+            It basically sets this flag to True.
+            default = False
+
+        overwrite : boolean, optional
+            overwrites files on S3 if set to True. Default is True
+
+        invalidate : boolean, optional
+            invalidates the CDN (a.k.a Distribution) cache if the file already exists on S3
+            default = False
+            Note that invalidation might take up to 15 minutes to take place. It is easier and faster to use cache buster
+            to grab lastest version of your file on CDN than invalidation.
+
+
+
+        Examples
+        --------
+        from s3utils import S3utils
+
+        s3utils = S3utils(
+            AWS_ACCESS_KEY_ID = 'your access key',
+            AWS_SECRET_ACCESS_KEY = 'your secret key',
+            AWS_STORAGE_BUCKET_NAME = 'your bucket name',
+            S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
+            )
+
+        s3utils.cp("path/to/folder","/test/")
+        ... copying /path/to/myfolder/test2.txt to test/myfolder/test2.txt
+        ... copying /path/to/myfolder/test.txt to test/myfolder/test.txt
+        ... copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
+        ... copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
+
+        """
 
         files_to_be_invalidated = []
 
@@ -185,21 +245,22 @@ class S3utils(object):
 
 
 
-        if os.path.exists(local_path):
             
-            #copying the contents of the folder and not folder itself
-            if local_path.endswith("/*"):   
-                local_path=local_path[:-2]
-                target_path = re.sub(r"^/|/$", "", target_path)   #Amazon S3 doesn't let the name to begin with /
-            #copying folder too
-            else:
-                local_path = re.sub(r"/$", "", local_path)
-                target_path = os.path.join(
-                                    re.sub(r"^/", "", target_path),
-                                     os.path.basename(local_path)
-                                     ) 
+        #copying the contents of the folder and not folder itself
+        if local_path.endswith("/*"):   
+            local_path=local_path[:-2]
+            target_path = re.sub(r"^/|/$", "", target_path)   #Amazon S3 doesn't let the name to begin with /
+        #copying folder too
+        else:
+            local_base_name = os.path.basename(local_path)
 
-            self.printv( "LOCAL PATH: %s" % local_path )
+            local_path = re.sub(r"/$", "", local_path)
+            target_path = re.sub(r"^/", "", target_path)
+
+            if not target_path.endswith(local_base_name):
+                target_path = os.path.join(target_path, local_base_name)
+
+        if os.path.exists(local_path):
 
             # re_base = re.compile(r"^"+local_path)  #matching for strings starting with local_path
 
@@ -225,7 +286,7 @@ class S3utils(object):
                                             a_file
                                             )
 
-                            self.cp_file(
+                            self.__cp_file(
                                         os.path.join(local_root, a_file),
                                         target_file=target_file,
                                         acl=acl,
@@ -243,7 +304,7 @@ class S3utils(object):
             
             # if it is a file
             else:
-                self.cp_file(local_path, target_path, acl=acl, del_after_upload=del_after_upload, overwrite=overwrite)
+                self.__cp_file(local_path, target_path, acl=acl, del_after_upload=del_after_upload, overwrite=overwrite)
                 if target_path in list_of_files:
                     files_to_be_invalidated.append(target_path)
 
@@ -259,7 +320,30 @@ class S3utils(object):
 
     @connectit
     def mv(self, local_file, target_file, acl='public-read', overwrite=True, invalidate=False):
-        """moves the file to the S3 (deletes the local copy)"""
+        """
+        Moves the file to the S3 and deletes the local copy
+        
+        It is basically s3utils.cp that has del_after_upload=True
+
+        Examples
+        --------
+
+        from s3utils import S3utils
+
+        s3utils = S3utils(
+            AWS_ACCESS_KEY_ID = 'your access key',
+            AWS_SECRET_ACCESS_KEY = 'your secret key',
+            AWS_STORAGE_BUCKET_NAME = 'your bucket name',
+            S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
+            )
+
+        s3utils.mv("path/to/folder","/test/")
+        ... moving /path/to/myfolder/test2.txt to test/myfolder/test2.txt
+        ... moving /path/to/myfolder/test.txt to test/myfolder/test.txt
+        ... moving /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
+        ... moving /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
+
+        """
 
         self.cp(local_file, target_file, acl=acl, del_after_upload=True, overwrite=overwrite, invalidate=invalidate)
 
@@ -280,36 +364,23 @@ class S3utils(object):
             the_image_crops_path_full_path = os.path.join(settings.MEDIA_ROOT, the_image_crops_path)
         
 
-            self.cp(local_file = local_file,
-                            target_file = os.path.join(settings.MEDIA_ROOT_BASE, the_image_path),
+            # import pdb
+            # pdb.set_trace()
+
+            self.cp(local_path = local_file,
+                            target_path = os.path.join(settings.MEDIA_ROOT_BASE, the_image_path),
                             del_after_upload = del_after_upload,
                             )
 
-            try:
-                all_thumbs = os.listdir(the_image_crops_path_full_path)
 
-                for i in all_thumbs:
-                    self.cp(os.path.join(settings.MEDIA_ROOT, the_image_crops_path, i),
-                                    os.path.join(settings.MEDIA_ROOT_BASE, the_image_crops_path, i),
-                                    del_after_upload = del_after_upload,
-                                    )
+            # logger.error(the_image_crops_path_full_path)
+            # logger.error(os.path.join(settings.MEDIA_ROOT_BASE, the_image_crops_path))
 
-                #self.logger.info("del_after_upload: %s " % del_after_upload)
-                if del_after_upload:
-                    try:
-                        #self.logger.info("trying to delete folder: %s " % the_image_crops_path_full_path)
-                        os.rmdir(the_image_crops_path_full_path)
-                    except:
-                        self.logger.error("Unable to delete the folder: ", exc_info=True)
-                        pass
+            self.cp(local_path = the_image_crops_path_full_path + "/*",
+                            target_path = os.path.join(settings.MEDIA_ROOT_BASE, the_image_crops_path),
+                            del_after_upload = del_after_upload,
+                            )
 
-            except OSError as e:
-                if e.strerror == 'Not a directory':
-                    pass
-
-                if e.strerror == 'No such file or directory':
-                    self.logger.error("file or folder doesn't exist for upload: %s" % all_thumbs)
-                    pass
 
 
 
