@@ -2,6 +2,7 @@ import os
 import re
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
+from boto import connect_cloudfront
 
 from collections import OrderedDict
 
@@ -42,6 +43,27 @@ def connectit(fn):
     return wrapped
 
 
+def connectit_cloudfront(fn):
+    def wrapped(*args, **kwargs):
+        result = "Err"
+
+        try:
+            if not args[0].conn_cloudfront:
+                args[0].connect_cloudfront()
+            
+            result = fn(*args, **kwargs)
+
+        finally:
+            pass
+            # args[0].disconnect()
+
+        return result
+
+    return wrapped
+
+
+
+
 class S3utils(object):
 
     def __init__(
@@ -60,8 +82,11 @@ class S3utils(object):
         self.MEDIA_ROOT_BASE = MEDIA_ROOT_BASE
         self.GO_S3_DEBUG_LEVEL = GO_S3_DEBUG_LEVEL
         self.conn = None
+        self.conn_cloudfront = None
 
         self.logger = the_logging.getLogger(__name__)
+
+        self.list_of_files = None
         
         #setting the logging level based on GO_S3_DEBUG_LEVEL
         if (GO_S3_DEBUG_LEVEL==0):
@@ -94,6 +119,13 @@ class S3utils(object):
         self.conn = None
 
 
+    def connect_cloudfront(self):
+        """connects to cloud front which is more control than just S3"""
+
+        self.conn_cloudfront = connect_cloudfront(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.GO_S3_DEBUG_LEVEL)
+
+
+
     @connectit
     def mkdir(self, target_folder):
         # extension = "_$folder$";
@@ -109,12 +141,14 @@ class S3utils(object):
             print ("Unable to create the folder: %s" % target_folder)
 
 
-    def cp_file(self, local_file, target_file, acl='public-read', del_after_upload=False):
+    def cp_file(self, local_file, target_file, acl='public-read', del_after_upload=False, overwrite=True):
         """ copies a file to s3 """
 
         self.printv( "copying %s to %s" % (local_file, target_file) )
 
-        # return 0
+        if not overwrite and target_file in self.list_of_files:
+            return "File Already Exists"
+            
 
         try:
 
@@ -140,8 +174,15 @@ class S3utils(object):
 
 
     @connectit
-    def cp(self, local_path, target_path, acl='public-read', del_after_upload=False):
+    def cp(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False):
         """ copies a file or folder from local to s3"""
+
+        files_to_be_invalidated = []
+
+        if overwrite:
+            list_of_files = self.ls(folder=local_path, begin_from_file="", num=-1, get_grants=False, all_grant_data=False)
+
+
 
 
         if os.path.exists(local_path):
@@ -179,30 +220,48 @@ class S3utils(object):
                             # import pdb
                             # pdb.set_trace()
 
-                            self.cp_file(
-                                        os.path.join(local_root, a_file),
-                                        os.path.join(
+                            target_file = os.path.join(
                                             target_path + local_root.replace(first_local_root, ""),
                                             a_file
-                                            ),
+                                            )
+
+                            self.cp_file(
+                                        os.path.join(local_root, a_file),
+                                        target_file=target_file,
                                         acl=acl,
                                         del_after_upload=del_after_upload,
+                                        overwrite=overwrite,
                                         )
+
+                            if target_file in list_of_files:
+                                files_to_be_invalidated.append(target_file)
+
+
                     #if folder is empty
                     else:
                         self.mkdir(target_path + local_root.replace(first_local_root, ""))
+            
+            # if it is a file
             else:
-                self.cp_file(local_path, target_path, acl=acl, del_after_upload=del_after_upload)
+                self.cp_file(local_path, target_path, acl=acl, del_after_upload=del_after_upload, overwrite=overwrite)
+                if target_path in list_of_files:
+                    files_to_be_invalidated.append(target_path)
+
+            if invalidate:
+                self.invalidate(files_to_be_invalidated)
+
         else:
             self.logger.error("trying to upload to s3 but file doesn't exist: %s" % local_path)
-            return False
+            return "path does not exist locally"
+
+
 
 
     @connectit
-    def mv(self, local_file, target_file, acl='public-read'):
+    def mv(self, local_file, target_file, acl='public-read', overwrite=True, invalidate=False):
         """moves the file to the S3 (deletes the local copy)"""
 
-        self.cp(local_file, target_file, acl='public-read', del_after_upload=True)
+        self.cp(local_file, target_file, acl=acl, del_after_upload=True, overwrite=overwrite, invalidate=invalidate)
 
 
     @connectit
@@ -340,7 +399,7 @@ class S3utils(object):
             for (i,v) in enumerate(bucket_files):
                 list_of_files.append(v.name)
                 if i==num:
-                    break            
+                    break
 
         return list_of_files
 
@@ -359,4 +418,26 @@ class S3utils(object):
         return self.ls(folder=folder, begin_from_file=begin_from_file, num=num, get_grants=True, all_grant_data=all_grant_data)
 
 
+
+
+
+    @connectit_cloudfront
+    def invalidate(self, files_to_be_invalidated):
+
+        #Your CDN is called distribution on Amazaon. And you can have more than one distro
+        all_distros = self.conn_cloudfront.get_all_distributions()
+
+        for distro in all_distros:
+            invalidation_request = self.conn_cloudfront.create_invalidation_request(distro.id, files_to_be_invalidated)
+
+        return (distro, invalidation_request.id)
+
+        # inval_req = self.k.create_invalidation_request(u'ECH69MOIW7613', files_to_be_invalidated)
+
+    @connectit_cloudfront
+    def check_invalidation_request(self, distro, request_id):
+
+        return self.conn_cloudfront.get_invalidation_requests(distro, request_id)
+
+        # return self.conn_cloudfront.invalidation_request_status(distro, request_id)
 
