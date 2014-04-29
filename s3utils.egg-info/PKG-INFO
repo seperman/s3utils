@@ -1,0 +1,31 @@
+Metadata-Version: 1.1
+Name: s3utils
+Version: 0.5
+Summary: S3 Utils deals with Amazon S3 buckets
+Home-page: https://github.com/erasmose/s3utils
+Author: Erasmose
+Author-email: sep@zepworks.com
+License: Apache License 2.0
+Download-URL: https://github.com/erasmose/s3utils/tarball/master
+Description: S3 Utils v0.5
+        =====
+        
+        A light Python wrapper around Amazon Boto library.
+        
+        
+        ##Installation
+        
+        Install from PyPi:
+        
+            pip install s3utils
+        
+Platform: UNKNOWN
+Classifier: Environment :: Web Environment
+Classifier: Framework :: Django
+Classifier: License :: MIT License
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: Linux, Mac
+Classifier: Topic :: Software Development
+Classifier: Programming Language :: Python
+Classifier: Topic :: Internet :: WWW/HTTP
+Classifier: Topic :: Internet :: WWW/HTTP :: Dynamic Content

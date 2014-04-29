@@ -5,7 +5,7 @@ from boto.s3.key import Key
 from boto import connect_cloudfront
 from shutil import rmtree
 from collections import Iterable, OrderedDict
-
+from functools import wraps    #deals with decorats shpinx documentation
 
 try:
     from django.conf import settings
@@ -27,8 +27,8 @@ except:
 
 
 
-
 def connectit(fn):
+    @wraps(fn)
     def wrapped(*args, **kwargs):
         result = "Err"
 
@@ -51,6 +51,7 @@ def connectit(fn):
 
 
 def connectit_cloudfront(fn):
+    @wraps(fn)
     def wrapped(*args, **kwargs):
         result = "Err"
 
@@ -178,8 +179,7 @@ class S3utils(object):
 
     @connectit
     def cp(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False):
-        """
-        Copies a file or folder from local to s3
+        """ Copies a file or folder from local to s3
 
         Parameters
         ----------        
@@ -194,10 +194,10 @@ class S3utils(object):
             File permissions on S3. Default is public-read
 
             options:        
-            a. private: Owner gets FULL_CONTROL. No one else has any access rights.
-            b. public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
-            c. public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
-            d. authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
+                - private: Owner gets FULL_CONTROL. No one else has any access rights.
+                - public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
+                - public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
+                - authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
 
 
         del_after_upload : boolean, optional
@@ -220,14 +220,12 @@ class S3utils(object):
         Examples
         --------
             >>> from s3utils import S3utils
-
             >>> s3utils = S3utils(
             ... AWS_ACCESS_KEY_ID = 'your access key',
             ... AWS_SECRET_ACCESS_KEY = 'your secret key',
             ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
             ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
             ... )
-
             >>> s3utils.cp("path/to/folder","/test/")
             copying /path/to/myfolder/test2.txt to test/myfolder/test2.txt
             copying /path/to/myfolder/test.txt to test/myfolder/test.txt
@@ -337,14 +335,12 @@ class S3utils(object):
         --------
 
             >>> from s3utils import S3utils
-
             >>> s3utils = S3utils(
             ... AWS_ACCESS_KEY_ID = 'your access key',
             ... AWS_SECRET_ACCESS_KEY = 'your secret key',
             ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
             ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
             ... )
-
             >>> s3utils.mv("path/to/folder","/test/")
             moving /path/to/myfolder/test2.txt to test/myfolder/test2.txt
             moving /path/to/myfolder/test.txt to test/myfolder/test.txt
@@ -391,10 +387,11 @@ class S3utils(object):
         It needs you to set k.key to a key on amazon (file path) before running this.
         note that Amazon returns a list of grants for each file.
 
-        a. private: Owner gets FULL_CONTROL. No one else has any access rights.
-        b. public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
-        c. public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
-        d. authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
+        options:        
+            - private: Owner gets FULL_CONTROL. No one else has any access rights.
+            - public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
+            - public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
+            - authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
 
         """
 
@@ -432,24 +429,22 @@ class S3utils(object):
             File permissions on S3. Default is public-read
 
             options:        
-            a. private: Owner gets FULL_CONTROL. No one else has any access rights.
-            b. public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
-            c. public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
-            d. authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
+                - private: Owner gets FULL_CONTROL. No one else has any access rights.
+                - public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
+                - public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
+                - authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
 
         
         Examples
         --------
 
             >>> from s3utils import S3utils
-
             >>> s3utils = S3utils(
             ... AWS_ACCESS_KEY_ID = 'your access key',
             ... AWS_SECRET_ACCESS_KEY = 'your secret key',
             ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
             ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
             ... )
-
             >>> s3utils.chmod("path/to/file","private")
 
 
@@ -549,23 +544,17 @@ class S3utils(object):
         --------
 
             >>> from s3utils import S3utils
-
             >>> s3utils = S3utils(
             ... AWS_ACCESS_KEY_ID = 'your access key',
             ... AWS_SECRET_ACCESS_KEY = 'your secret key',
             ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
             ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
             ... )
-
             >>> aa = s3utils.invalidate("test/no_upload/hoho/photo.JPG")
-
             >>> print aa
             ('your distro id', u'your request id')
-
             >>> invalidation_request_id = aa[1]
-
             >>> bb = s3utils.check_invalidation_request(*aa)
-
             >>> for inval in bb:
             ...     print 'Object: %s, ID: %s, Status: %s' % (inval, inval.id, inval.status)
 

@@ -1,0 +1,12 @@
+LICENSE
+MANIFEST.in
+README.md
+setup.py
+s3utils/__init__.py
+s3utils/s3utils.py
+s3utils.egg-info/PKG-INFO
+s3utils.egg-info/SOURCES.txt
+s3utils.egg-info/dependency_links.txt
+s3utils.egg-info/not-zip-safe
+s3utils.egg-info/requires.txt
+s3utils.egg-info/top_level.txt
