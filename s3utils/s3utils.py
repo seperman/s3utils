@@ -355,7 +355,7 @@ class S3utils(object):
 
 
     @connectit
-    def cp_cropduster_image(self, the_image_path, del_after_upload=False, overwrite=True, invalidate=True):
+    def cp_cropduster_image(self, the_image_path, del_after_upload=False, overwrite=False, invalidate=False):
         """deals with cropduster images saving to S3"""
 
 
