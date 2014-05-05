@@ -178,7 +178,7 @@ class S3utils(object):
 
 
     @connectit
-    def cp(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False):
+    def cp(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False, add_suffix_if_exist=False):
         """ Copies a file or folder from local to s3
 
         Parameters
@@ -236,8 +236,8 @@ class S3utils(object):
 
         files_to_be_invalidated = []
 
-        if not overwrite:
-            list_of_files = self.ls(folder=target_path, begin_from_file="", num=-1, get_grants=False, all_grant_data=False)
+
+        list_of_files = self.ls(folder=target_path, begin_from_file="", num=-1, get_grants=False, all_grant_data=False)
 
 
 
@@ -283,7 +283,7 @@ class S3utils(object):
                                             a_file
                                             )
 
-                            if not overwrite and target_file not in list_of_files:
+                            if overwrite or (not overwrite and target_file not in list_of_files):
                                 self.__cp_file(
                                             os.path.join(local_root, a_file),
                                             target_file=target_file,
@@ -294,7 +294,7 @@ class S3utils(object):
                             else:
                                 self.printv("%s already exist. Not overwriting." % target_file)
 
-                            if target_file in list_of_files:
+                            if overwrite and target_file in list_of_files and invalidate:
                                 files_to_be_invalidated.append(target_file)
 
 
@@ -305,13 +305,15 @@ class S3utils(object):
                         if target_file not in list_of_files:
                             self.mkdir(target_file)
 
+
+
                 if del_after_upload:
                     rmtree(local_path)
 
             # if it is a file
             else:
                 self.__cp_file(local_path, target_path, acl=acl, del_after_upload=del_after_upload, overwrite=overwrite)
-                if target_path in list_of_files:
+                if overwrite and target_path in list_of_files and invalidate:
                     files_to_be_invalidated.append(target_path)
 
             if invalidate:
@@ -353,7 +355,7 @@ class S3utils(object):
 
 
     @connectit
-    def cp_cropduster_image(self, the_image_path, del_after_upload=False):
+    def cp_cropduster_image(self, the_image_path, del_after_upload=False, overwrite=False, add_suffix_if_exist=True):
         """deals with cropduster images saving to S3"""
 
 
@@ -370,12 +372,16 @@ class S3utils(object):
             self.cp(local_path = local_file,
                             target_path = os.path.join(settings.MEDIA_ROOT_BASE, the_image_path),
                             del_after_upload = del_after_upload,
+                            overwrite=overwrite,
+                            add_suffix_if_exist=add_suffix_if_exist,
                             )
 
 
             self.cp(local_path = the_image_crops_path_full_path + "/*",
                             target_path = os.path.join(settings.MEDIA_ROOT_BASE, the_image_crops_path),
                             del_after_upload = del_after_upload,
+                            overwrite=overwrite,
+                            add_suffix_if_exist=add_suffix_if_exist,
                             )
 
 

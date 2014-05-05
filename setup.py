@@ -12,7 +12,7 @@ except:
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(name='s3utils',
-      version='0.5',
+      version='0.5.2',
       description='S3 Utils deals with Amazon S3 buckets',
       url='https://github.com/erasmose/s3utils',
       download_url='https://github.com/erasmose/s3utils/tarball/master',
@@ -28,10 +28,8 @@ setup(name='s3utils',
       long_description=long_description,
       classifiers=[
         'Environment :: Web Environment',
-        'Framework :: Django',
-        'License :: MIT License',
         "Intended Audience :: Developers",
-        "Operating System :: Linux, Mac",
+        "Operating System :: OS Independent",
         "Topic :: Software Development",
         'Programming Language :: Python',
         'Topic :: Internet :: WWW/HTTP',

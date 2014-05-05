@@ -1,7 +1,10 @@
-##S3 Utils v0.5
+##S3 Utils v0.5.2
 =====
 
 A light Python wrapper around Amazon Boto library.
+
+##Documentation
+* [Documentations](http://s3utils.readthedocs.org/en/latest/)
 
 
 ##Installation
@@ -15,10 +18,10 @@ Install from PyPi:
     
 in your settings file::
 
-    >>> S3UTILS_DEBUG_LEVEL=1
-    >>> AWS_ACCESS_KEY_ID = 'your access key'
-    >>> AWS_SECRET_ACCESS_KEY = 'your secret key'
-    >>> AWS_STORAGE_BUCKET_NAME = 'your bucket name'
+    S3UTILS_DEBUG_LEVEL=1
+    AWS_ACCESS_KEY_ID = 'your access key'
+    AWS_SECRET_ACCESS_KEY = 'your secret key'
+    AWS_STORAGE_BUCKET_NAME = 'your bucket name'
 
 in your code::
 
@@ -46,6 +49,10 @@ in your code::
     copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
     copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
 
+
+##Example invalidate CDN cache of files that get overwritten
+
+    >>> s3utils.cp("path/to/folder","/test/", invalidate=True)
 
 
 ##Author
