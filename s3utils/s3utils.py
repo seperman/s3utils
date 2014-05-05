@@ -178,7 +178,7 @@ class S3utils(object):
 
 
     @connectit
-    def cp(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False, add_suffix_if_exist=False):
+    def cp(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False,):
         """ Copies a file or folder from local to s3
 
         Parameters
@@ -316,7 +316,7 @@ class S3utils(object):
                 if overwrite and target_path in list_of_files and invalidate:
                     files_to_be_invalidated.append(target_path)
 
-            if invalidate:
+            if invalidate and files_to_be_invalidated:
                 self.invalidate(files_to_be_invalidated)
 
         else:
@@ -355,7 +355,7 @@ class S3utils(object):
 
 
     @connectit
-    def cp_cropduster_image(self, the_image_path, del_after_upload=False, overwrite=False, add_suffix_if_exist=True):
+    def cp_cropduster_image(self, the_image_path, del_after_upload=False, overwrite=True, invalidate=True):
         """deals with cropduster images saving to S3"""
 
 
@@ -373,7 +373,7 @@ class S3utils(object):
                             target_path = os.path.join(settings.MEDIA_ROOT_BASE, the_image_path),
                             del_after_upload = del_after_upload,
                             overwrite=overwrite,
-                            add_suffix_if_exist=add_suffix_if_exist,
+                            invalidate=invalidate,
                             )
 
 
@@ -381,7 +381,7 @@ class S3utils(object):
                             target_path = os.path.join(settings.MEDIA_ROOT_BASE, the_image_crops_path),
                             del_after_upload = del_after_upload,
                             overwrite=overwrite,
-                            add_suffix_if_exist=add_suffix_if_exist,
+                            invalidate=invalidate,
                             )
 
 
