@@ -140,13 +140,13 @@
 <dl class="method">
 <dt id="s3utils.S3utils.connect">
 <tt class="descname">connect</tt><big>(</big><big>)</big><a class="headerlink" href="#s3utils.S3utils.connect" title="Permalink to this definition">¶</a></dt>
-<dd><p>establishes the connection</p>
+<dd><p>Establishes the connection. This is normally done automatically.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="s3utils.S3utils.connect_cloudfront">
 <tt class="descname">connect_cloudfront</tt><big>(</big><big>)</big><a class="headerlink" href="#s3utils.S3utils.connect_cloudfront" title="Permalink to this definition">¶</a></dt>
-<dd><p>connects to cloud front which is more control than just S3</p>
+<dd><p>connects to cloud front which is more control than just S3. This is done automatically for you.</p>
 </dd></dl>
 
 <dl class="method">
@@ -216,6 +216,22 @@ to grab lastest version of your file on CDN than invalidation.</p>
 <span class="go">copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff</span>
 </pre></div>
 </div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># When overwrite is set to False:</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s3utils</span><span class="o">.</span><span class="n">cp</span><span class="p">(</span><span class="s">&quot;path/to/folder&quot;</span><span class="p">,</span><span class="s">&quot;/test/&quot;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="go">test/myfolder/test2.txt already exist. Not overwriting.</span>
+<span class="go">test/myfolder/test.txt already exist. Not overwriting.</span>
+<span class="go">test/myfolder/hoho/photo.JPG already exist. Not overwriting.</span>
+<span class="go">test/myfolder/hoho/haha/ff already exist. Not overwriting.</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># To overwrite the files on S3 and invalidate the CDN (cloudfront) cache so the new file goes on CDN:</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s3utils</span><span class="o">.</span><span class="n">cp</span><span class="p">(</span><span class="s">&quot;path/to/folder&quot;</span><span class="p">,</span><span class="s">&quot;/test/&quot;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">invalidate</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="go">copying /path/to/myfolder/test2.txt to test/myfolder/test2.txt</span>
+<span class="go">copying /path/to/myfolder/test.txt to test/myfolder/test.txt</span>
+<span class="go">copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG</span>
+<span class="go">copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff</span>
+</pre></div>
+</div>
 </dd></dl>
 
 <dl class="method">
@@ -227,7 +243,8 @@ to grab lastest version of your file on CDN than invalidation.</p>
 <dl class="method">
 <dt id="s3utils.S3utils.disconnect">
 <tt class="descname">disconnect</tt><big>(</big><big>)</big><a class="headerlink" href="#s3utils.S3utils.disconnect" title="Permalink to this definition">¶</a></dt>
-<dd><p>closes the connection</p>
+<dd><p>Closes the connection. This is normally done automatically but you need to
+use this to close the connection if you manually started the connection using the connect() method.</p>
 </dd></dl>
 
 <dl class="method">
@@ -261,7 +278,7 @@ note that Amazon returns a list of grants for each file.</p>
 <span class="gp">... </span><span class="n">AWS_STORAGE_BUCKET_NAME</span> <span class="o">=</span> <span class="s">&#39;your bucket name&#39;</span><span class="p">,</span>
 <span class="gp">... </span><span class="n">S3UTILS_DEBUG_LEVEL</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>  <span class="c">#change it to 0 for less verbose</span>
 <span class="gp">... </span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">aa</span> <span class="o">=</span> <span class="n">s3utils</span><span class="o">.</span><span class="n">invalidate</span><span class="p">(</span><span class="s">&quot;test/no_upload/hoho/photo.JPG&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">aa</span> <span class="o">=</span> <span class="n">s3utils</span><span class="o">.</span><span class="n">invalidate</span><span class="p">(</span><span class="s">&quot;test/myfolder/hoho/photo.JPG&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">aa</span>
 <span class="go">(&#39;your distro id&#39;, u&#39;your request id&#39;)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">invalidation_request_id</span> <span class="o">=</span> <span class="n">aa</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
@@ -302,6 +319,76 @@ starting listing from a certain file and fetching certain num (number) of files.
 </tr>
 </tbody>
 </table>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">s3utils</span> <span class="kn">import</span> <span class="n">S3utils</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s3utils</span> <span class="o">=</span> <span class="n">S3utils</span><span class="p">(</span>
+<span class="gp">... </span><span class="n">AWS_ACCESS_KEY_ID</span> <span class="o">=</span> <span class="s">&#39;your access key&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">AWS_SECRET_ACCESS_KEY</span> <span class="o">=</span> <span class="s">&#39;your secret key&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">AWS_STORAGE_BUCKET_NAME</span> <span class="o">=</span> <span class="s">&#39;your bucket name&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">S3UTILS_DEBUG_LEVEL</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>  <span class="c">#change it to 0 for less verbose</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">json</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># We use json.dumps to print the results more readable:</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">my_folder_stuff</span> <span class="o">=</span> <span class="n">s3utils</span><span class="o">.</span><span class="n">ll</span><span class="p">(</span><span class="s">&quot;/test/&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">my_folder_stuff</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="go">{</span>
+<span class="go">  &quot;test/myfolder/&quot;: [</span>
+<span class="go">    {</span>
+<span class="go">      &quot;name&quot;: &quot;owner&#39;s name&quot;, </span>
+<span class="go">      &quot;permission&quot;: &quot;FULL_CONTROL&quot;</span>
+<span class="go">    }</span>
+<span class="go">  ], </span>
+<span class="go">  &quot;test/myfolder/em/&quot;: [</span>
+<span class="go">    {</span>
+<span class="go">      &quot;name&quot;: &quot;owner&#39;s name&quot;, </span>
+<span class="go">      &quot;permission&quot;: &quot;FULL_CONTROL&quot;</span>
+<span class="go">    }</span>
+<span class="go">  ], </span>
+<span class="go">  &quot;test/myfolder/hoho/&quot;: [</span>
+<span class="go">    {</span>
+<span class="go">      &quot;name&quot;: &quot;owner&#39;s name&quot;, </span>
+<span class="go">      &quot;permission&quot;: &quot;FULL_CONTROL&quot;</span>
+<span class="go">    }</span>
+<span class="go">  ], </span>
+<span class="go">  &quot;test/myfolder/hoho/.DS_Store&quot;: [</span>
+<span class="go">    {</span>
+<span class="go">      &quot;name&quot;: &quot;owner&#39;s name&quot;, </span>
+<span class="go">      &quot;permission&quot;: &quot;FULL_CONTROL&quot;</span>
+<span class="go">    }, </span>
+<span class="go">    {</span>
+<span class="go">      &quot;name&quot;: null, </span>
+<span class="go">      &quot;permission&quot;: &quot;READ&quot;</span>
+<span class="go">    }</span>
+<span class="go">  ], </span>
+<span class="go">  &quot;test/myfolder/hoho/haha/&quot;: [</span>
+<span class="go">    {</span>
+<span class="go">      &quot;name&quot;: &quot;owner&#39;s name&quot;, </span>
+<span class="go">      &quot;permission&quot;: &quot;FULL_CONTROL&quot;</span>
+<span class="go">    }</span>
+<span class="go">  ], </span>
+<span class="go">  &quot;test/myfolder/hoho/haha/ff&quot;: [</span>
+<span class="go">    {</span>
+<span class="go">      &quot;name&quot;: &quot;owner&#39;s name&quot;, </span>
+<span class="go">      &quot;permission&quot;: &quot;FULL_CONTROL&quot;</span>
+<span class="go">    }, </span>
+<span class="go">    {</span>
+<span class="go">      &quot;name&quot;: null, </span>
+<span class="go">      &quot;permission&quot;: &quot;READ&quot;</span>
+<span class="go">    }</span>
+<span class="go">  ], </span>
+<span class="go">  &quot;test/myfolder/hoho/photo.JPG&quot;: [</span>
+<span class="go">    {</span>
+<span class="go">      &quot;name&quot;: &quot;owner&#39;s name&quot;, </span>
+<span class="go">      &quot;permission&quot;: &quot;FULL_CONTROL&quot;</span>
+<span class="go">    }, </span>
+<span class="go">    {</span>
+<span class="go">      &quot;name&quot;: null, </span>
+<span class="go">      &quot;permission&quot;: &quot;READ&quot;</span>
+<span class="go">    }</span>
+<span class="go">  ], </span>
+<span class="go">}</span>
+</pre></div>
+</div>
 </dd></dl>
 
 <dl class="method">
@@ -330,6 +417,36 @@ starting listing from a certain file and fetching certain num (number) of files.
 </tr>
 </tbody>
 </table>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">s3utils</span> <span class="kn">import</span> <span class="n">S3utils</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s3utils</span> <span class="o">=</span> <span class="n">S3utils</span><span class="p">(</span>
+<span class="gp">... </span><span class="n">AWS_ACCESS_KEY_ID</span> <span class="o">=</span> <span class="s">&#39;your access key&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">AWS_SECRET_ACCESS_KEY</span> <span class="o">=</span> <span class="s">&#39;your secret key&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">AWS_STORAGE_BUCKET_NAME</span> <span class="o">=</span> <span class="s">&#39;your bucket name&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">S3UTILS_DEBUG_LEVEL</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>  <span class="c">#change it to 0 for less verbose</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">s3utils</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s">&quot;test/&quot;</span><span class="p">)</span>
+<span class="go">[u&#39;test/myfolder/&#39;, u&#39;test/myfolder/em/&#39;, u&#39;test/myfolder/hoho/&#39;, u&#39;test/myfolder/hoho/.DS_Store&#39;, u&#39;test/myfolder/hoho/haha/&#39;, u&#39;test/myfolder/hoho/haha/ff&#39;, u&#39;test/myfolder/hoho/haha/photo.JPG&#39;]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="s3utils.S3utils.mkdir">
+<tt class="descname">mkdir</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#s3utils.S3utils.mkdir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a folder on S3.</p>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">s3utils</span> <span class="kn">import</span> <span class="n">S3utils</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s3utils</span> <span class="o">=</span> <span class="n">S3utils</span><span class="p">(</span>
+<span class="gp">... </span><span class="n">AWS_ACCESS_KEY_ID</span> <span class="o">=</span> <span class="s">&#39;your access key&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">AWS_SECRET_ACCESS_KEY</span> <span class="o">=</span> <span class="s">&#39;your secret key&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">AWS_STORAGE_BUCKET_NAME</span> <span class="o">=</span> <span class="s">&#39;your bucket name&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">S3UTILS_DEBUG_LEVEL</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>  <span class="c">#change it to 0 for less verbose</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s3utils</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="s">&quot;path/to/my_folder&quot;</span><span class="p">)</span>
+<span class="go">Making directory: path/to/my_folder</span>
+</pre></div>
+</div>
 </dd></dl>
 
 <dl class="method">

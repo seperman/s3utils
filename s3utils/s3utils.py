@@ -108,7 +108,7 @@ class S3utils(object):
 
 
     def connect(self):
-        """establishes the connection"""
+        """Establishes the connection. This is normally done automatically."""
 
         self.conn = S3Connection(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.S3UTILS_DEBUG_LEVEL)
 
@@ -119,14 +119,17 @@ class S3utils(object):
 
 
     def disconnect(self):
-        """closes the connection"""
+        """
+        Closes the connection. This is normally done automatically but you need to
+        use this to close the connection if you manually started the connection using the connect() method.
+        """
         
         self.bucket.connection.connection.close()
         self.conn = None
 
 
     def connect_cloudfront(self):
-        """connects to cloud front which is more control than just S3"""
+        """connects to cloud front which is more control than just S3. This is done automatically for you."""
 
         self.conn_cloudfront = connect_cloudfront(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.S3UTILS_DEBUG_LEVEL)
 
@@ -134,6 +137,21 @@ class S3utils(object):
 
     @connectit
     def mkdir(self, target_folder):
+        """
+        Create a folder on S3.
+
+        Examples
+        --------
+            >>> from s3utils import S3utils
+            >>> s3utils = S3utils(
+            ... AWS_ACCESS_KEY_ID = 'your access key',
+            ... AWS_SECRET_ACCESS_KEY = 'your secret key',
+            ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
+            ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
+            ... )
+            >>> s3utils.mkdir("path/to/my_folder")
+            Making directory: path/to/my_folder
+        """
         # extension = "_$folder$";
         # s3.putObject("MyBucket", "MyFolder"+ extension, new ByteArrayInputStream(new byte[0]), null); 
         self.printv( "Making directory: %s" % target_folder )
@@ -232,15 +250,27 @@ class S3utils(object):
             copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
             copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
 
+            >>> # When overwrite is set to False:
+            >>> s3utils.cp("path/to/folder","/test/", overwrite=False)
+            test/myfolder/test2.txt already exist. Not overwriting.
+            test/myfolder/test.txt already exist. Not overwriting.
+            test/myfolder/hoho/photo.JPG already exist. Not overwriting.
+            test/myfolder/hoho/haha/ff already exist. Not overwriting.
+
+            >>> # To overwrite the files on S3 and invalidate the CDN (cloudfront) cache so the new file goes on CDN:
+            >>> s3utils.cp("path/to/folder","/test/", overwrite=True, invalidate=True)
+            copying /path/to/myfolder/test2.txt to test/myfolder/test2.txt
+            copying /path/to/myfolder/test.txt to test/myfolder/test.txt
+            copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
+            copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
+
+
         """
 
         files_to_be_invalidated = []
 
 
         list_of_files = self.ls(folder=target_path, begin_from_file="", num=-1, get_grants=False, all_grant_data=False)
-
-
-
 
             
         #copying the contents of the folder and not folder itself
@@ -480,6 +510,21 @@ class S3utils(object):
             which file to start from on S3.
             This is usedful in case you are iterating over lists of files and you need to page the result by
             starting listing from a certain file and fetching certain num (number) of files.
+
+
+        Examples
+        --------
+
+            >>> from s3utils import S3utils
+            >>> s3utils = S3utils(
+            ... AWS_ACCESS_KEY_ID = 'your access key',
+            ... AWS_SECRET_ACCESS_KEY = 'your secret key',
+            ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
+            ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
+            ... )
+            >>> print s3utils.ls("test/")
+            [u'test/myfolder/', u'test/myfolder/em/', u'test/myfolder/hoho/', u'test/myfolder/hoho/.DS_Store', u'test/myfolder/hoho/haha/', u'test/myfolder/hoho/haha/ff', u'test/myfolder/hoho/haha/photo.JPG']
+
         """
 
         #S3 object key can't start with /
@@ -532,6 +577,78 @@ class S3utils(object):
 
         all_grant_data : Boolean, optional
             More detailed file permission data will be returned.
+
+        Examples
+        --------
+
+            >>> from s3utils import S3utils
+            >>> s3utils = S3utils(
+            ... AWS_ACCESS_KEY_ID = 'your access key',
+            ... AWS_SECRET_ACCESS_KEY = 'your secret key',
+            ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
+            ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
+            ... )
+            >>> import json
+            >>> # We use json.dumps to print the results more readable:
+            >>> my_folder_stuff = s3utils.ll("/test/")
+            >>> print json.dumps(my_folder_stuff, indent=2)
+            {
+              "test/myfolder/": [
+                {
+                  "name": "owner's name", 
+                  "permission": "FULL_CONTROL"
+                }
+              ], 
+              "test/myfolder/em/": [
+                {
+                  "name": "owner's name", 
+                  "permission": "FULL_CONTROL"
+                }
+              ], 
+              "test/myfolder/hoho/": [
+                {
+                  "name": "owner's name", 
+                  "permission": "FULL_CONTROL"
+                }
+              ], 
+              "test/myfolder/hoho/.DS_Store": [
+                {
+                  "name": "owner's name", 
+                  "permission": "FULL_CONTROL"
+                }, 
+                {
+                  "name": null, 
+                  "permission": "READ"
+                }
+              ], 
+              "test/myfolder/hoho/haha/": [
+                {
+                  "name": "owner's name", 
+                  "permission": "FULL_CONTROL"
+                }
+              ], 
+              "test/myfolder/hoho/haha/ff": [
+                {
+                  "name": "owner's name", 
+                  "permission": "FULL_CONTROL"
+                }, 
+                {
+                  "name": null, 
+                  "permission": "READ"
+                }
+              ], 
+              "test/myfolder/hoho/photo.JPG": [
+                {
+                  "name": "owner's name", 
+                  "permission": "FULL_CONTROL"
+                }, 
+                {
+                  "name": null, 
+                  "permission": "READ"
+                }
+              ], 
+            }
+
         """
         return self.ls(folder=folder, begin_from_file=begin_from_file, num=num, get_grants=True, all_grant_data=all_grant_data)
 
@@ -556,7 +673,7 @@ class S3utils(object):
             ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
             ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
             ... )
-            >>> aa = s3utils.invalidate("test/no_upload/hoho/photo.JPG")
+            >>> aa = s3utils.invalidate("test/myfolder/hoho/photo.JPG")
             >>> print aa
             ('your distro id', u'your request id')
             >>> invalidation_request_id = aa[1]
