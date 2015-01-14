@@ -5,26 +5,27 @@ from boto.s3.key import Key
 from boto import connect_cloudfront
 from shutil import rmtree
 from collections import Iterable, OrderedDict
-from functools import wraps    #deals with decorats shpinx documentation
+from functools import wraps  # deals with decorats shpinx documentation
 
 try:
     from django.conf import settings
 except:
     class settings():
-        AWS_ACCESS_KEY_ID=""
-        AWS_SECRET_ACCESS_KEY=""
-        AWS_STORAGE_BUCKET_NAME=""
-        MEDIA_ROOT=""
-        MEDIA_ROOT_BASE=""
-        S3UTILS_DEBUG_LEVEL=0
+        AWS_ACCESS_KEY_ID = ""
+        AWS_SECRET_ACCESS_KEY = ""
+        AWS_STORAGE_BUCKET_NAME = ""
+        MEDIA_ROOT = ""
+        MEDIA_ROOT_BASE = ""
+        S3UTILS_DEBUG_LEVEL = 0
 
 # LOGGING
 try:
     from settings_logging import the_logging
+    logger = the_logging.getLogger(__name__)
 except:
     import logging as the_logging
+    logger = the_logging.getLogger(__name__)
     # the_logging.basicConfig()
-
 
 
 def connectit(fn):
@@ -38,7 +39,7 @@ def connectit(fn):
                 already_connected = False
             else:
                 already_connected = True
-            
+
             result = fn(*args, **kwargs)
 
         finally:
@@ -58,7 +59,7 @@ def connectit_cloudfront(fn):
         try:
             if not args[0].conn_cloudfront:
                 args[0].connect_cloudfront()
-            
+
             result = fn(*args, **kwargs)
             # There is no command for disconnecting!!
         except:
@@ -69,18 +70,16 @@ def connectit_cloudfront(fn):
     return wrapped
 
 
-
-
 class S3utils(object):
 
     def __init__(
-        self, AWS_ACCESS_KEY_ID=getattr(settings,"AWS_ACCESS_KEY_ID",""),
-        AWS_SECRET_ACCESS_KEY=getattr(settings,"AWS_SECRET_ACCESS_KEY",""),
-        AWS_STORAGE_BUCKET_NAME=getattr(settings,"AWS_STORAGE_BUCKET_NAME",""),
-        MEDIA_ROOT=getattr(settings,"MEDIA_ROOT",""),
-        MEDIA_ROOT_BASE=getattr(settings,"MEDIA_ROOT_BASE",""),
-        S3UTILS_DEBUG_LEVEL=getattr(settings,"S3UTILS_DEBUG_LEVEL",0),
-            ):
+        self, AWS_ACCESS_KEY_ID=getattr(settings, "AWS_ACCESS_KEY_ID", ""),
+        AWS_SECRET_ACCESS_KEY=getattr(settings, "AWS_SECRET_ACCESS_KEY", ""),
+        AWS_STORAGE_BUCKET_NAME=getattr(settings, "AWS_STORAGE_BUCKET_NAME", ""),
+        MEDIA_ROOT=getattr(settings, "MEDIA_ROOT", ""),
+        MEDIA_ROOT_BASE=getattr(settings, "MEDIA_ROOT_BASE", ""),
+        S3UTILS_DEBUG_LEVEL=getattr(settings, "S3UTILS_DEBUG_LEVEL", 0),
+    ):
 
         self.AWS_ACCESS_KEY_ID = AWS_ACCESS_KEY_ID
         self.AWS_SECRET_ACCESS_KEY = AWS_SECRET_ACCESS_KEY
@@ -91,21 +90,16 @@ class S3utils(object):
         self.conn = None
         self.conn_cloudfront = None
 
-        self.logger = the_logging.getLogger(__name__)
-        
         #setting the logging level based on S3UTILS_DEBUG_LEVEL
-        if (S3UTILS_DEBUG_LEVEL==0):
-            self.logger.setLevel(the_logging.ERROR)
+        if (S3UTILS_DEBUG_LEVEL == 0):
+            logger.setLevel(the_logging.ERROR)
         else:
-            self.logger.setLevel(the_logging.INFO)
-
+            logger.setLevel(the_logging.INFO)
 
     def printv(self, msg):
         if self.S3UTILS_DEBUG_LEVEL:
-            print (msg)
-            self.logger.info(msg)
-    
-
+            print(msg)
+            logger.info(msg)
 
     def connect(self):
         """Establishes the connection. This is normally done automatically."""
@@ -116,24 +110,19 @@ class S3utils(object):
 
         self.k = Key(self.bucket)
 
-
-
     def disconnect(self):
         """
         Closes the connection. This is normally done automatically but you need to
         use this to close the connection if you manually started the connection using the connect() method.
         """
-        
+
         self.bucket.connection.connection.close()
         self.conn = None
-
 
     def connect_cloudfront(self):
         """connects to cloud front which is more control than just S3. This is done automatically for you."""
 
         self.conn_cloudfront = connect_cloudfront(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.S3UTILS_DEBUG_LEVEL)
-
-
 
     @connectit
     def mkdir(self, target_folder):
@@ -153,54 +142,53 @@ class S3utils(object):
             Making directory: path/to/my_folder
         """
         # extension = "_$folder$";
-        # s3.putObject("MyBucket", "MyFolder"+ extension, new ByteArrayInputStream(new byte[0]), null); 
-        self.printv( "Making directory: %s" % target_folder )
+        # s3.putObject("MyBucket", "MyFolder"+ extension, new ByteArrayInputStream(new byte[0]), null);
+        self.printv("Making directory: %s" % target_folder)
         # return 0
         try:
             self.k.key = re.sub(r"^/|/$", "", target_folder) + "/"
             self.k.set_contents_from_string(None)
             self.k.close()
         except:
-            self.logger.error("Unable to create the folder: %s" % target_folder, exc_info=True)
-            print ("Unable to create the folder: %s" % target_folder)
-
+            logger.error("Unable to create the folder: %s" % target_folder, exc_info=True)
+            print("Unable to create the folder: %s" % target_folder)
 
     def __cp_file(self, local_file, target_file, acl='public-read', del_after_upload=False, overwrite=True):
         """ copies a file to s3 """
 
         action_word = "moving" if del_after_upload else "copying"
 
-        self.printv( "%s %s to %s" % (action_word, local_file, target_file) )
+        self.printv("%s %s to %s" % (action_word, local_file, target_file))
 
         try:
 
-            self.k.key = target_file   #setting the path (key) of file in the container
-            self.k.set_contents_from_filename(local_file)  #grabs the contents from local_file address. Note that it loads the whole file into memory
-            self.logger.info("uploaded to s3: %s" % target_file)  
-            self.k.set_acl(acl)  #setting the file permissions
-            self.k.close()  #not sure if it is needed. Somewhere I read it is recommended.
+            self.k.key = target_file  # setting the path (key) of file in the container
+            # grabs the contents from local_file address. Note that it loads the whole file into memory
+            self.k.set_contents_from_filename(local_file)
+            logger.info("uploaded to s3: %s" % target_file)
+            self.k.set_acl(acl)  # setting the file permissions
+            self.k.close()  # not sure if it is needed. Somewhere I read it is recommended.
 
             #if it is supposed to delete the local file after uploading
             if del_after_upload:
                 try:
                     os.remove(local_file)
                 except:
-                    self.logger.error("Unable to delete the file: ", exc_info=True)
+                    logger.error("Unable to delete the file: ", exc_info=True)
 
             return True
 
         except:
-            print( "Error in writing to %s" % target_file )
-            self.logger.error("Error in writing to %s" % target_file, exc_info=True)
+            print("Error in writing to %s" % target_file)
+            logger.error("Error in writing to %s" % target_file, exc_info=True)
             return False
-
 
     @connectit
     def cp(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False,):
         """ Copies a file or folder from local to s3
 
         Parameters
-        ----------        
+        ----------
 
         local_path : string
             Path to file or folder. Or if you want to copy only the contents of folder, add /* at the end of folder name
@@ -211,7 +199,7 @@ class S3utils(object):
         acl : string, optional
             File permissions on S3. Default is public-read
 
-            options:        
+            options:
                 - private: Owner gets FULL_CONTROL. No one else has any access rights.
                 - public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
                 - public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
@@ -269,14 +257,12 @@ class S3utils(object):
 
         files_to_be_invalidated = []
 
-
         list_of_files = self.ls(folder=target_path, begin_from_file="", num=-1, get_grants=False, all_grant_data=False)
 
-            
         #copying the contents of the folder and not folder itself
-        if local_path.endswith("/*"):   
-            local_path=local_path[:-2]
-            target_path = re.sub(r"^/|/$", "", target_path)   #Amazon S3 doesn't let the name to begin with /
+        if local_path.endswith("/*"):
+            local_path = local_path[:-2]
+            target_path = re.sub(r"^/|/$", "", target_path)  # Amazon S3 doesn't let the name to begin with /
         #copying folder too
         else:
             local_base_name = os.path.basename(local_path)
@@ -297,9 +283,9 @@ class S3utils(object):
             if os.path.isdir(local_path):
 
                 for local_root, directories, files in os.walk(local_path):
-                    
+
                     if not first_local_root:
-                        first_local_root = local_root 
+                        first_local_root = local_root
 
                     #if folder is not empty
                     if files:
@@ -309,24 +295,23 @@ class S3utils(object):
                             # pdb.set_trace()
 
                             target_file = os.path.join(
-                                            target_path + local_root.replace(first_local_root, ""),
-                                            a_file
-                                            )
+                                target_path + local_root.replace(first_local_root, ""),
+                                a_file
+                            )
 
                             if overwrite or (not overwrite and target_file not in list_of_files):
                                 self.__cp_file(
-                                            os.path.join(local_root, a_file),
-                                            target_file=target_file,
-                                            acl=acl,
-                                            del_after_upload=del_after_upload,
-                                            overwrite=overwrite,
-                                            )
+                                    os.path.join(local_root, a_file),
+                                    target_file=target_file,
+                                    acl=acl,
+                                    del_after_upload=del_after_upload,
+                                    overwrite=overwrite,
+                                )
                             else:
                                 self.printv("%s already exist. Not overwriting." % target_file)
 
                             if overwrite and target_file in list_of_files and invalidate:
                                 files_to_be_invalidated.append(target_file)
-
 
                     #if folder is empty
                     else:
@@ -334,8 +319,6 @@ class S3utils(object):
 
                         if target_file not in list_of_files:
                             self.mkdir(target_file)
-
-
 
                 if del_after_upload:
                     rmtree(local_path)
@@ -350,17 +333,14 @@ class S3utils(object):
                 self.invalidate(files_to_be_invalidated)
 
         else:
-            self.logger.error("trying to upload to s3 but file doesn't exist: %s" % local_path)
+            logger.error("trying to upload to s3 but file doesn't exist: %s" % local_path)
             return "path does not exist locally"
-
-
-
 
     @connectit
     def mv(self, local_file, target_file, acl='public-read', overwrite=True, invalidate=False):
         """
         Moves the file to the S3 and deletes the local copy
-        
+
         It is basically s3utils.cp that has del_after_upload=True
 
         Examples
@@ -383,47 +363,41 @@ class S3utils(object):
 
         self.cp(local_file, target_file, acl=acl, del_after_upload=True, overwrite=overwrite, invalidate=invalidate)
 
-
     @connectit
     def cp_cropduster_image(self, the_image_path, del_after_upload=False, overwrite=False, invalidate=False):
         """deals with cropduster images saving to S3"""
 
+        #logger.info("CKeditor the_image_path: %s" % the_image_path)
 
-        #self.logger.info("CKeditor the_image_path: %s" % the_image_path)
-        
         local_file = os.path.join(settings.MEDIA_ROOT, the_image_path)
 
         #only try to upload things if the origin cropduster file exists (so it is not already uploaded to the CDN)
-        if os.path.exists(local_file): 
+        if os.path.exists(local_file):
 
             the_image_crops_path = os.path.splitext(the_image_path)[0]
             the_image_crops_path_full_path = os.path.join(settings.MEDIA_ROOT, the_image_crops_path)
-        
-            self.cp(local_path = local_file,
-                            target_path = os.path.join(settings.MEDIA_ROOT_BASE, the_image_path),
-                            del_after_upload = del_after_upload,
-                            overwrite=overwrite,
-                            invalidate=invalidate,
-                            )
 
+            self.cp(local_path=local_file,
+                    target_path=os.path.join(settings.MEDIA_ROOT_BASE, the_image_path),
+                    del_after_upload=del_after_upload,
+                    overwrite=overwrite,
+                    invalidate=invalidate,
+                    )
 
-            self.cp(local_path = the_image_crops_path_full_path + "/*",
-                            target_path = os.path.join(settings.MEDIA_ROOT_BASE, the_image_crops_path),
-                            del_after_upload = del_after_upload,
-                            overwrite=overwrite,
-                            invalidate=invalidate,
-                            )
-
-
-
+            self.cp(local_path=the_image_crops_path_full_path + "/*",
+                    target_path=os.path.join(settings.MEDIA_ROOT_BASE, the_image_crops_path),
+                    del_after_upload=del_after_upload,
+                    overwrite=overwrite,
+                    invalidate=invalidate,
+                    )
 
     def get_grants(self, target_file, all_grant_data):
-        """ 
+        """
         returns grant permission, grant owner, grant owner email and grant id  as a list.
         It needs you to set k.key to a key on amazon (file path) before running this.
         note that Amazon returns a list of grants for each file.
 
-        options:        
+        options:
             - private: Owner gets FULL_CONTROL. No one else has any access rights.
             - public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
             - public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
@@ -433,22 +407,21 @@ class S3utils(object):
 
         # import ipdb
         # ipdb.set_trace()
-        
+
         self.k.key = target_file
 
-        the_grants = self.k.get_acl().acl.grants    
-        
+        the_grants = self.k.get_acl().acl.grants
+
         grant_list = []
 
         for grant in the_grants:
             if all_grant_data:
-                grant_list.append( {"permission":grant.permission, "name": grant.display_name, "email": grant.email_address, "id": grant.id} )
+                grant_list.append(
+                    {"permission": grant.permission, "name": grant.display_name, "email": grant.email_address, "id": grant.id})
             else:
-                grant_list.append( {"permission":grant.permission, "name": grant.display_name} )
-
+                grant_list.append({"permission": grant.permission, "name": grant.display_name})
 
         return grant_list
-
 
     @connectit
     def chmod(self, target_file, acl='public-read'):
@@ -456,7 +429,7 @@ class S3utils(object):
         sets permissions for a file on S3
 
         Parameters
-        ----------        
+        ----------
 
         target_file : string
             Path to file on S3
@@ -464,13 +437,13 @@ class S3utils(object):
         acl : string, optional
             File permissions on S3. Default is public-read
 
-            options:        
+            options:
                 - private: Owner gets FULL_CONTROL. No one else has any access rights.
                 - public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
                 - public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
                 - authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
 
-        
+
         Examples
         --------
 
@@ -486,11 +459,9 @@ class S3utils(object):
 
         """
 
-        self.k.key = target_file   #setting the path (key) of file in the container
-        self.k.set_acl(acl)  #setting the file permissions
+        self.k.key = target_file  # setting the path (key) of file in the container
+        self.k.set_acl(acl)  # setting the file permissions
         self.k.close()
-
-
 
     @connectit
     def ls(self, folder="", begin_from_file="", num=-1, get_grants=False, all_grant_data=False):
@@ -498,14 +469,14 @@ class S3utils(object):
         gets the list of file names (keys) in a s3 folder
 
         Parameters
-        ----------        
+        ----------
 
         folder : string
             Path to file on S3
 
-        num: integer, optional 
+        num: integer, optional
             number of results to return, by default it returns all results.
-           
+
         begin_from_file: string, optional
             which file to start from on S3.
             This is usedful in case you are iterating over lists of files and you need to page the result by
@@ -532,44 +503,40 @@ class S3utils(object):
 
         bucket_files = self.bucket.list(prefix=folder, marker=begin_from_file)
 
-
-
         #in case listing grants
         if get_grants:
             list_of_files = OrderedDict()
-            for (i,v) in enumerate(bucket_files):
+            for (i, v) in enumerate(bucket_files):
                 # import pdb
                 # pdb.set_trace()
                 # print v.name
-                file_info={v.name: self.get_grants(v.name, all_grant_data)}
+                file_info = {v.name: self.get_grants(v.name, all_grant_data)}
                 list_of_files.update(file_info)
-                if i==num:
+                if i == num:
                     break
 
         else:
             list_of_files = []
-            for (i,v) in enumerate(bucket_files):
+            for (i, v) in enumerate(bucket_files):
                 list_of_files.append(v.name)
-                if i==num:
+                if i == num:
                     break
 
         return list_of_files
-
-
 
     def ll(self, folder="", begin_from_file="", num=-1, all_grant_data=False):
         """
         Gets the list of files and permissions from S3
 
         Parameters
-        ----------        
+        ----------
 
         folder : string
             Path to file on S3
 
-        num: integer, optional 
+        num: integer, optional
             number of results to return, by default it returns all results.
-           
+
         begin_from_file : string, optional
             which file to start from on S3.
             This is usedful in case you are iterating over lists of files and you need to page the result by
@@ -595,66 +562,62 @@ class S3utils(object):
             {
               "test/myfolder/": [
                 {
-                  "name": "owner's name", 
+                  "name": "owner's name",
                   "permission": "FULL_CONTROL"
                 }
-              ], 
+              ],
               "test/myfolder/em/": [
                 {
-                  "name": "owner's name", 
+                  "name": "owner's name",
                   "permission": "FULL_CONTROL"
                 }
-              ], 
+              ],
               "test/myfolder/hoho/": [
                 {
-                  "name": "owner's name", 
+                  "name": "owner's name",
                   "permission": "FULL_CONTROL"
                 }
-              ], 
+              ],
               "test/myfolder/hoho/.DS_Store": [
                 {
-                  "name": "owner's name", 
+                  "name": "owner's name",
                   "permission": "FULL_CONTROL"
-                }, 
+                },
                 {
-                  "name": null, 
+                  "name": null,
                   "permission": "READ"
                 }
-              ], 
+              ],
               "test/myfolder/hoho/haha/": [
                 {
-                  "name": "owner's name", 
+                  "name": "owner's name",
                   "permission": "FULL_CONTROL"
                 }
-              ], 
+              ],
               "test/myfolder/hoho/haha/ff": [
                 {
-                  "name": "owner's name", 
+                  "name": "owner's name",
                   "permission": "FULL_CONTROL"
-                }, 
+                },
                 {
-                  "name": null, 
+                  "name": null,
                   "permission": "READ"
                 }
-              ], 
+              ],
               "test/myfolder/hoho/photo.JPG": [
                 {
-                  "name": "owner's name", 
+                  "name": "owner's name",
                   "permission": "FULL_CONTROL"
-                }, 
+                },
                 {
-                  "name": null, 
+                  "name": null,
                   "permission": "READ"
                 }
-              ], 
+              ],
             }
 
         """
         return self.ls(folder=folder, begin_from_file=begin_from_file, num=num, get_grants=True, all_grant_data=all_grant_data)
-
-
-
-
 
     @connectit_cloudfront
     def invalidate(self, files_to_be_invalidated):
@@ -662,7 +625,7 @@ class S3utils(object):
         Invalidates the CDN (distribution) cache for a certain file of files. This might take up to 15 minutes to be effective.
 
         You can check for the invalidation status using check_invalidation_request.
-        
+
         Examples
         --------
 
@@ -702,4 +665,3 @@ class S3utils(object):
         return self.conn_cloudfront.get_invalidation_requests(distro, request_id)
 
         # return self.conn_cloudfront.invalidation_request_status(distro, request_id)
-
