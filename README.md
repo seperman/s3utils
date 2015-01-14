@@ -1,4 +1,4 @@
-##S3 Utils v0.5.2
+##S3 Utils v0.5.3
 =====
 
 A light Python wrapper around Amazon Boto library.
@@ -15,7 +15,7 @@ Install from PyPi:
 
 ##Example usage in Django
 
-    
+
 in your settings file::
 
     S3UTILS_DEBUG_LEVEL=1

@@ -1,5 +1,5 @@
 import os
-from setuptools import setup #, find_packages
+from setuptools import setup  # , find_packages
 
 try:
     with open('README.md') as file:
@@ -12,7 +12,7 @@ except:
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(name='s3utils',
-      version='0.5.2',
+      version='0.5.3',
       description='S3 Utils deals with Amazon S3 buckets',
       url='https://github.com/erasmose/s3utils',
       download_url='https://github.com/erasmose/s3utils/tarball/master',
@@ -23,16 +23,16 @@ setup(name='s3utils',
       include_package_data=True,
       zip_safe=False,
       install_requires=[
-        "boto>=2.27.0",
+          "boto>=2.27.0",
       ],
       long_description=long_description,
       classifiers=[
-        'Environment :: Web Environment',
-        "Intended Audience :: Developers",
-        "Operating System :: OS Independent",
-        "Topic :: Software Development",
-        'Programming Language :: Python',
-        'Topic :: Internet :: WWW/HTTP',
-        'Topic :: Internet :: WWW/HTTP :: Dynamic Content',        
-        ],
+          'Environment :: Web Environment',
+          "Intended Audience :: Developers",
+          "Operating System :: OS Independent",
+          "Topic :: Software Development",
+          'Programming Language :: Python',
+          'Topic :: Internet :: WWW/HTTP',
+          'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
+      ],
       )
