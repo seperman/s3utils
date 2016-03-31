@@ -34,15 +34,18 @@ def connectit(fn):
 
         try:
             if not args[0].conn:
-                args[0].connect()
                 already_connected = False
+                args[0].connect()
             else:
                 already_connected = True
 
             result = fn(*args, **kwargs)
 
+        except:
+            raise
+
         finally:
-            if not already_connected:
+            if already_connected:
                 args[0].disconnect()
 
         return result
