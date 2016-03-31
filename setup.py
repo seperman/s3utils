@@ -12,11 +12,11 @@ except:
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(name='s3utils',
-      version='0.5.3',
+      version='0.6.0',
       description='S3 Utils deals with Amazon S3 buckets',
-      url='https://github.com/erasmose/s3utils',
-      download_url='https://github.com/erasmose/s3utils/tarball/master',
-      author='Erasmose',
+      url='https://github.com/seperman/s3utils',
+      download_url='https://github.com/seperman/s3utils/tarball/master',
+      author='Seperman',
       author_email='sep@zepworks.com',
       license='Apache License 2.0',
       packages=['s3utils'],
@@ -31,8 +31,9 @@ setup(name='s3utils',
           "Intended Audience :: Developers",
           "Operating System :: OS Independent",
           "Topic :: Software Development",
-          'Programming Language :: Python',
+          "Programming Language :: Python :: 2.7",
           'Topic :: Internet :: WWW/HTTP',
           'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
+          "License :: OSI Approved :: Apache Software License"
       ],
       )

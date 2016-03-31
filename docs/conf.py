@@ -48,7 +48,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'S3Utils'
-copyright = u'2014, Erasmose (Sep Dehpour)'
+copyright = u'2014, Seperman (Sep Ehr)'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -201,7 +201,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   ('index', 'S3Utils.tex', u'S3Utils Documentation',
-   u'Erasmose (Sep Dehpour)', 'manual'),
+   u'Seperman (Sep Ehr)', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -231,7 +231,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 's3utils', u'S3Utils Documentation',
-     [u'Erasmose (Sep Dehpour)'], 1)
+     [u'Seperman (Sep Ehr)'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -245,7 +245,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'S3Utils', u'S3Utils Documentation',
-   u'Erasmose (Sep Dehpour)', 'S3Utils', 'One line description of project.',
+   u'Seperman (Sep Ehr)', 'S3Utils', 'One line description of project.',
    'Miscellaneous'),
 ]
 

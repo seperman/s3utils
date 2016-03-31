@@ -20,7 +20,7 @@ Install from PyPi::
 ***************
 Setup in Django
 ***************
-    
+
 in your settings file::
 
     S3UTILS_DEBUG_LEVEL=1
@@ -74,6 +74,6 @@ Indices and tables
 Author
 ==================
 
-Erasmose (Sep Dehpour)
-`Github <https://github.com/erasmose>`_
+Seperman (Sep Ehr)
+`Github <https://github.com/seperman>`_
 `Linkedin <http://www.linkedin.com/in/sepehr>`_
