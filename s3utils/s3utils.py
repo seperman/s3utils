@@ -1,6 +1,7 @@
 import os
 import re
-from boto.s3.connection import S3Connection
+import boto
+# from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 from boto import connect_cloudfront
 from shutil import rmtree
@@ -36,21 +37,10 @@ def connectit(fn):
     def wrapped(*args, **kwargs):
         result = "Err"
 
-        try:
-            if not args[0].conn:
-                already_connected = False
-                args[0].connect()
-            else:
-                already_connected = True
+        if not args[0].conn:
+            args[0].connect()
 
-            result = fn(*args, **kwargs)
-
-        except:
-            raise
-
-        finally:
-            if already_connected:
-                args[0].disconnect()
+        result = fn(*args, **kwargs)
 
         return result
 
@@ -61,14 +51,10 @@ def connectit_cloudfront(fn):
     def wrapped(*args, **kwargs):
         result = "Err"
 
-        try:
-            if not args[0].conn_cloudfront:
-                args[0].connect_cloudfront()
+        if not args[0].conn_cloudfront:
+            args[0].connect_cloudfront()
 
-            result = fn(*args, **kwargs)
-            # There is no command for disconnecting!!
-        except:
-            raise
+        result = fn(*args, **kwargs)
 
         return result
 
@@ -104,6 +90,10 @@ class S3utils(object):
         except AttributeError:
             pass
 
+    def __del__(self):
+        if self.conn:
+            self.disconnect()
+
     def printv(self, msg):
         if self.S3UTILS_DEBUG_LEVEL:
             print(msg)
@@ -111,7 +101,7 @@ class S3utils(object):
 
     def connect(self):
         "Establish the connection. This is normally done automatically."
-        self.conn = S3Connection(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.S3UTILS_DEBUG_LEVEL)
+        self.conn = boto.connect_s3(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.S3UTILS_DEBUG_LEVEL)
 
         self.bucket = self.conn.get_bucket(self.AWS_STORAGE_BUCKET_NAME)
 
@@ -150,7 +140,7 @@ class S3utils(object):
         """
         self.printv("Making directory: %s" % target_folder)
         self.k.key = re.sub(r"^/|/$", "", target_folder) + "/"
-        self.k.set_contents_from_string(None)
+        self.k.set_contents_from_string('')
         self.k.close()
 
     def __cp_file(self, local_file, target_file, acl='public-read', del_after_upload=False, overwrite=True):
@@ -180,8 +170,8 @@ class S3utils(object):
             logger.error("Error in writing to %s", target_file, exc_info=True)
             return False
 
-    @connectit
-    def cp(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False,):
+    def cp(self, local_path, target_path, acl='public-read',
+           del_after_upload=False, overwrite=True, invalidate=False):
         """
         Copy a file or folder from local to s3
 
@@ -252,10 +242,8 @@ class S3utils(object):
 
 
         """
-        files_to_be_invalidated = []
-        failed_to_copy_files = set([])
-        existing_files = set([])
 
+        result = None
         list_of_files = self.ls(folder=target_path, begin_from_file="", num=-1, get_grants=False, all_grant_data=False)
 
         # copying the contents of the folder and not folder itself
@@ -274,67 +262,75 @@ class S3utils(object):
 
         if os.path.exists(local_path):
 
-            # re_base = re.compile(r"^"+local_path)  #matching for strings starting with local_path
-
-            first_local_root = None
-
-            # if it is a folder
-            if os.path.isdir(local_path):
-
-                for local_root, directories, files in os.walk(local_path):
-
-                    if not first_local_root:
-                        first_local_root = local_root
-
-                    # if folder is not empty
-                    if files:
-                        # iterating over the files in the folder
-                        for a_file in files:
-                            target_file = os.path.join(
-                                target_path + local_root.replace(first_local_root, ""),
-                                a_file
-                            )
-
-                            if overwrite or (not overwrite and target_file not in list_of_files):
-                                success = self.__cp_file(
-                                    os.path.join(local_root, a_file),
-                                    target_file=target_file,
-                                    acl=acl,
-                                    del_after_upload=del_after_upload,
-                                    overwrite=overwrite,
-                                )
-                                if not success:
-                                    failed_to_copy_files.add(a_file)
-                            else:
-                                existing_files.add(a_file)
-                                self.printv("%s already exist. Not overwriting." % target_file)
-
-                            if overwrite and target_file in list_of_files and invalidate:
-                                files_to_be_invalidated.append(target_file)
-
-                    # if folder is empty
-                    else:
-                        target_file = target_path + local_root.replace(first_local_root, "") + "/"
-
-                        if target_file not in list_of_files:
-                            self.mkdir(target_file)
-
-                if del_after_upload:
-                    rmtree(local_path)
-
-            # if it is a file
-            else:
-                success = self.__cp_file(local_path, target_path, acl=acl, del_after_upload=del_after_upload, overwrite=overwrite)
-                if not success:
-                    failed_to_copy_files.add(a_file)
-                if overwrite and target_path in list_of_files and invalidate:
-                    files_to_be_invalidated.append(target_path)
-
-            if invalidate and files_to_be_invalidated:
-                self.invalidate(files_to_be_invalidated)
+            result = self.__copy_path(local_path, target_path, acl, del_after_upload, overwrite, invalidate, list_of_files)
 
         else:
             logger.error("trying to upload to s3 but file doesn't exist: %s" % local_path)
+
+        return result
+
+    @connectit
+    def __copy_path(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False, list_of_files=[]):
+        files_to_be_invalidated = []
+        failed_to_copy_files = set([])
+        existing_files = set([])
+
+        first_local_root = None
+
+        # if it is a folder
+        if os.path.isdir(local_path):
+
+            for local_root, directories, files in os.walk(local_path):
+
+                if not first_local_root:
+                    first_local_root = local_root
+
+                # if folder is not empty
+                if files:
+                    # iterating over the files in the folder
+                    for a_file in files:
+                        target_file = os.path.join(
+                            target_path + local_root.replace(first_local_root, ""),
+                            a_file
+                        )
+
+                        if overwrite or (not overwrite and target_file not in list_of_files):
+                            success = self.__cp_file(
+                                os.path.join(local_root, a_file),
+                                target_file=target_file,
+                                acl=acl,
+                                del_after_upload=del_after_upload,
+                                overwrite=overwrite,
+                            )
+                            if not success:
+                                failed_to_copy_files.add(a_file)
+                        else:
+                            existing_files.add(a_file)
+                            self.printv("%s already exist. Not overwriting." % target_file)
+
+                        if overwrite and target_file in list_of_files and invalidate:
+                            files_to_be_invalidated.append(target_file)
+
+                # if folder is empty
+                else:
+                    target_file = target_path + local_root.replace(first_local_root, "") + "/"
+
+                    if target_file not in list_of_files:
+                        self.mkdir(target_file)
+
+            if del_after_upload:
+                rmtree(local_path)
+
+        # if it is a file
+        else:
+            success = self.__cp_file(local_path, target_path, acl=acl, del_after_upload=del_after_upload, overwrite=overwrite)
+            if not success:
+                failed_to_copy_files.add(a_file)
+            if overwrite and target_path in list_of_files and invalidate:
+                files_to_be_invalidated.append(target_path)
+
+        if invalidate and files_to_be_invalidated:
+            self.invalidate(files_to_be_invalidated)
 
         items = ('failed_to_copy_files', 'existing_files')
         local_vars = locals()
@@ -343,10 +339,9 @@ class S3utils(object):
             val = local_vars.get(i)
             if val:
                 result[i] = val
-        if result:
-            return result
 
-    @connectit
+        return result
+
     def mv(self, local_file, target_file, acl='public-read', overwrite=True, invalidate=False):
         """
         Move the file to the S3 and deletes the local copy
@@ -496,7 +491,7 @@ class S3utils(object):
             ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
             ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
             ... )
-            >>> print s3utils.ls("test/")
+            >>> print(s3utils.ls("test/"))
             {u'test/myfolder/', u'test/myfolder/em/', u'test/myfolder/hoho/', u'test/myfolder/hoho/.DS_Store', u'test/myfolder/hoho/haha/', u'test/myfolder/hoho/haha/ff', u'test/myfolder/hoho/haha/photo.JPG'}
 
         """
@@ -509,9 +504,6 @@ class S3utils(object):
         if get_grants:
             list_of_files = OrderedDict()
             for (i, v) in enumerate(bucket_files):
-                # import pdb
-                # pdb.set_trace()
-                # print v.name
                 file_info = {v.name: self.__get_grants(v.name, all_grant_data)}
                 list_of_files.update(file_info)
                 if i == num:
@@ -560,7 +552,7 @@ class S3utils(object):
             >>> import json
             >>> # We use json.dumps to print the results more readable:
             >>> my_folder_stuff = s3utils.ll("/test/")
-            >>> print json.dumps(my_folder_stuff, indent=2)
+            >>> print(json.dumps(my_folder_stuff, indent=2))
             {
               "test/myfolder/": [
                 {
@@ -639,12 +631,12 @@ class S3utils(object):
             ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
             ... )
             >>> aa = s3utils.invalidate("test/myfolder/hoho/photo.JPG")
-            >>> print aa
+            >>> print(aa)
             ('your distro id', u'your request id')
             >>> invalidation_request_id = aa[1]
             >>> bb = s3utils.check_invalidation_request(*aa)
             >>> for inval in bb:
-            ...     print 'Object: %s, ID: %s, Status: %s' % (inval, inval.id, inval.status)
+            ...     print('Object: %s, ID: %s, Status: %s' % (inval, inval.id, inval.status))
 
 
         """

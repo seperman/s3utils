@@ -1,13 +1,16 @@
 ##S3 Utils v0.6.0
 =====
 
-A light Python wrapper around Amazon Boto library.
+User friendly interface to deal with Amazon S3 bucket and Cloud Front.
+The commands are made to be just like Linux commands so it is easy to remember and use.
 
-##Documentation
+Behind the scen it is a light Python wrapper around Amazon Boto library.
+
+## Documentation
 * [Documentations](http://s3utils.readthedocs.org/en/latest/)
 
 
-##Installation
+## Installation
 
 Install from PyPi:
 
@@ -232,7 +235,7 @@ Examples
 [u'test/myfolder/', u'test/myfolder/em/', u'test/myfolder/hoho/', u'test/myfolder/hoho/.DS_Store', u'test/myfolder/hoho/haha/', u'test/myfolder/hoho/haha/ff', u'test/myfolder/hoho/haha/photo.JPG']
 ```
 
-## Ll
+## LL
 
 Get the list of files and permissions from S3
 

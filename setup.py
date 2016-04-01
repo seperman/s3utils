@@ -7,6 +7,7 @@ try:
 except:
     long_description = "S3 Utils deals with Amazon S3 buckets"
 
+test_requirements = ['moto==0.4.23']
 
 # allow setup.py to be run from any path
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
@@ -22,6 +23,7 @@ setup(name='s3utils',
       packages=['s3utils'],
       include_package_data=True,
       zip_safe=False,
+      tests_require=test_requirements,
       install_requires=[
           "boto>=2.27.0",
       ],
