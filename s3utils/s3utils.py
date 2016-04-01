@@ -265,6 +265,7 @@ class S3utils(object):
             result = self.__copy_path(local_path, target_path, acl, del_after_upload, overwrite, invalidate, list_of_files)
 
         else:
+            result = {'file_does_not_exist': local_path}
             logger.error("trying to upload to s3 but file doesn't exist: %s" % local_path)
 
         return result
@@ -340,6 +341,7 @@ class S3utils(object):
             if val:
                 result[i] = val
 
+        result = None if result == {} else result
         return result
 
     def mv(self, local_file, target_file, acl='public-read', overwrite=True, invalidate=False):
