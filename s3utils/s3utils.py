@@ -18,13 +18,17 @@ except:
         MEDIA_ROOT_BASE = ""
         S3UTILS_DEBUG_LEVEL = 0
 
-# LOGGING
-try:
-    from settings_logging import the_logging
-    logger = the_logging.getLogger(__name__)
-except:
-    import logging as the_logging
-    logger = the_logging.getLogger(__name__)
+# Set default logging handler to avoid "No handler found" warnings.
+import logging
+try:  # Python 2.7+
+    from logging import NullHandler
+except ImportError:
+    class NullHandler(logging.Handler):
+        def emit(self, record):
+            pass
+
+logging.getLogger(__name__).addHandler(NullHandler())
+logger = logging
 
 
 def connectit(fn):
@@ -92,10 +96,13 @@ class S3utils(object):
         self.conn_cloudfront = None
 
         # setting the logging level based on S3UTILS_DEBUG_LEVEL
-        if (S3UTILS_DEBUG_LEVEL == 0):
-            logger.setLevel(the_logging.ERROR)
-        else:
-            logger.setLevel(the_logging.INFO)
+        try:
+            if (S3UTILS_DEBUG_LEVEL == 0):
+                logger.setLevel(logging.ERROR)
+            else:
+                logger.setLevel(logging.INFO)
+        except AttributeError:
+            pass
 
     def printv(self, msg):
         if self.S3UTILS_DEBUG_LEVEL:
@@ -142,19 +149,13 @@ class S3utils(object):
             Making directory: path/to/my_folder
         """
         self.printv("Making directory: %s" % target_folder)
-        try:
-            self.k.key = re.sub(r"^/|/$", "", target_folder) + "/"
-            self.k.set_contents_from_string(None)
-            self.k.close()
-        except:
-            logger.error("Unable to create the folder: %s" % target_folder, exc_info=True)
-            print("Unable to create the folder: %s" % target_folder)
+        self.k.key = re.sub(r"^/|/$", "", target_folder) + "/"
+        self.k.set_contents_from_string(None)
+        self.k.close()
 
     def __cp_file(self, local_file, target_file, acl='public-read', del_after_upload=False, overwrite=True):
         """Copy a file to s3."""
         action_word = "moving" if del_after_upload else "copying"
-
-        self.printv("%s %s to %s" % (action_word, local_file, target_file))
 
         try:
 
@@ -165,18 +166,18 @@ class S3utils(object):
             self.k.set_acl(acl)  # setting the file permissions
             self.k.close()  # not sure if it is needed. Somewhere I read it is recommended.
 
+            self.printv("%s %s to %s" % (action_word, local_file, target_file))
             # if it is supposed to delete the local file after uploading
             if del_after_upload:
                 try:
                     os.remove(local_file)
                 except:
-                    logger.error("Unable to delete the file: ", exc_info=True)
+                    logger.error("Unable to delete the file: ", local_file, exc_info=True)
 
             return True
 
         except:
-            print("Error in writing to %s" % target_file)
-            logger.error("Error in writing to %s" % target_file, exc_info=True)
+            logger.error("Error in writing to %s", target_file, exc_info=True)
             return False
 
     @connectit
@@ -252,6 +253,8 @@ class S3utils(object):
 
         """
         files_to_be_invalidated = []
+        failed_to_copy_files = set([])
+        existing_files = set([])
 
         list_of_files = self.ls(folder=target_path, begin_from_file="", num=-1, get_grants=False, all_grant_data=False)
 
@@ -293,14 +296,17 @@ class S3utils(object):
                             )
 
                             if overwrite or (not overwrite and target_file not in list_of_files):
-                                self.__cp_file(
+                                success = self.__cp_file(
                                     os.path.join(local_root, a_file),
                                     target_file=target_file,
                                     acl=acl,
                                     del_after_upload=del_after_upload,
                                     overwrite=overwrite,
                                 )
+                                if not success:
+                                    failed_to_copy_files.add(a_file)
                             else:
+                                existing_files.add(a_file)
                                 self.printv("%s already exist. Not overwriting." % target_file)
 
                             if overwrite and target_file in list_of_files and invalidate:
@@ -318,7 +324,9 @@ class S3utils(object):
 
             # if it is a file
             else:
-                self.__cp_file(local_path, target_path, acl=acl, del_after_upload=del_after_upload, overwrite=overwrite)
+                success = self.__cp_file(local_path, target_path, acl=acl, del_after_upload=del_after_upload, overwrite=overwrite)
+                if not success:
+                    failed_to_copy_files.add(a_file)
                 if overwrite and target_path in list_of_files and invalidate:
                     files_to_be_invalidated.append(target_path)
 
@@ -327,7 +335,16 @@ class S3utils(object):
 
         else:
             logger.error("trying to upload to s3 but file doesn't exist: %s" % local_path)
-            return "path does not exist locally"
+
+        items = ('failed_to_copy_files', 'existing_files')
+        local_vars = locals()
+        result = {}
+        for i in items:
+            val = local_vars.get(i)
+            if val:
+                result[i] = val
+        if result:
+            return result
 
     @connectit
     def mv(self, local_file, target_file, acl='public-read', overwrite=True, invalidate=False):
@@ -480,7 +497,7 @@ class S3utils(object):
             ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
             ... )
             >>> print s3utils.ls("test/")
-            [u'test/myfolder/', u'test/myfolder/em/', u'test/myfolder/hoho/', u'test/myfolder/hoho/.DS_Store', u'test/myfolder/hoho/haha/', u'test/myfolder/hoho/haha/ff', u'test/myfolder/hoho/haha/photo.JPG']
+            {u'test/myfolder/', u'test/myfolder/em/', u'test/myfolder/hoho/', u'test/myfolder/hoho/.DS_Store', u'test/myfolder/hoho/haha/', u'test/myfolder/hoho/haha/ff', u'test/myfolder/hoho/haha/photo.JPG'}
 
         """
         # S3 object key can't start with /
@@ -501,9 +518,9 @@ class S3utils(object):
                     break
 
         else:
-            list_of_files = []
+            list_of_files = set([])
             for (i, v) in enumerate(bucket_files):
-                list_of_files.append(v.name)
+                list_of_files.add(v.name)
                 if i == num:
                     break
 
