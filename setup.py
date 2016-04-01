@@ -25,7 +25,7 @@ setup(name='s3utils',
       zip_safe=False,
       tests_require=test_requirements,
       install_requires=[
-          "boto>=2.27.0",
+          "boto>=2.39.0",
       ],
       long_description=long_description,
       classifiers=[
