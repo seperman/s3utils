@@ -69,7 +69,7 @@ class S3utilsTestCase(unittest.TestCase):
         self.assertEqual(remote_folder, filepath_remote_on_s3)
 
         remote_content = self.bucket.get_key(filepath_remote_on_s3).get_contents_as_string()
-        self.assertEqual(filecontent, remote_content)
+        self.assertEqual(filecontent, remote_content.decode('utf-8'))
 
         return filepath_local
 
@@ -104,7 +104,7 @@ class S3utilsTestCase(unittest.TestCase):
 
             filepath_remote_on_s3 = next(iter(filepath_remote_on_s3_set_expected))
             remote_content = self.bucket.get_key(filepath_remote_on_s3).get_contents_as_string()
-            self.assertEqual(filecontent, remote_content)
+            self.assertEqual(filecontent, remote_content.decode('utf-8'))
 
         return (folder_local, s3utils_result)
 

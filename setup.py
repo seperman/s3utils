@@ -34,6 +34,7 @@ setup(name='s3utils',
           "Operating System :: OS Independent",
           "Topic :: Software Development",
           "Programming Language :: Python :: 2.7",
+          "Programming Language :: Python :: 3.4",
           'Topic :: Internet :: WWW/HTTP',
           'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
           "License :: OSI Approved :: Apache Software License"
