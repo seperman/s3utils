@@ -1,10 +1,16 @@
-##S3 Utils v0.6.0
-=====
+# S3 Utils v0.6.0
 
-User friendly interface to deal with Amazon S3 bucket and Cloud Front.
-The commands are made to be just like Linux commands so it is easy to remember and use.
+![Python Versions](https://img.shields.io/pypi/pyversions/s3utils.svg?style=flat)
+![Doc](https://readthedocs.org/projects/s3utils/badge/?version=latest)
+![License](https://img.shields.io/pypi/l/s3utils.svg?version=latest)
+[![Build Status](https://travis-ci.org/seperman/s3utils.svg?branch=master)](https://travis-ci.org/seperman/s3utils)
 
-Behind the scen it is a light Python wrapper around Amazon Boto library.
+User friendly interface to deal with Amazon S3 bucket and Cloud Front in Python.
+I wrote this since s3cmd is for commandline usage and the other libraries out there seemed to be not maintained anymore.
+
+The s3utils methods are made to be just like Linux commands so it is easy to remember and use.
+
+Behind the scene it is a light Python wrapper around Amazon Boto library.
 
 ## Documentation
 * [Documentations](http://s3utils.readthedocs.org/en/latest/)
@@ -16,7 +22,7 @@ Install from PyPi:
 
     pip install s3utils
 
-# Setup
+## Setup
 
 ## Example setup in Django
 
@@ -59,7 +65,7 @@ copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
 copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
 ```
 
-# Mkdir
+## Mkdir
 
 Create a folder on S3.
 
@@ -75,11 +81,11 @@ Create a folder on S3.
 Making directory: path/to/my_folder
 ```
 
-# Cp
+## Cp
 
 Copy a file or folder from local to s3
 
-## Parameters
+### Parameters
 
 local_path : string
 Path to file or folder. Or if you want to copy only the contents of folder, add /* at the end of folder name
@@ -147,7 +153,7 @@ copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
 copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
 ```
 
-# Mv
+## Mv
 
 Move the file to the S3 and deletes the local copy
 
@@ -170,7 +176,7 @@ moving /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
 moving /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
 ```
 
-# Chmod
+## Chmod
 
 sets permissions for a file on S3
 
@@ -203,7 +209,7 @@ Examples
 >>> s3utils.chmod("path/to/file","private")
 ```
 
-# Ls
+## Ls
 
 gets the list of file names (keys) in a s3 folder
 
