@@ -16,41 +16,54 @@ Install from PyPi::
 
     pip install s3utils
 
+Python 2.7, 3.3, 3.4, 3.5 are supported.
 
-***************
-Setup in Django
-***************
+*****
+Setup
+*****
 
-in your settings file::
+Normal Setup
+------------
+    >>> from s3utils import S3utils
+    >>> s3utils = S3utils(
+    ... AWS_ACCESS_KEY_ID = 'your access key',
+    ... AWS_SECRET_ACCESS_KEY = 'your secret key',
+    ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
+    ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
+    ... )
 
-    S3UTILS_DEBUG_LEVEL=1
-    AWS_ACCESS_KEY_ID = 'your access key'
-    AWS_SECRET_ACCESS_KEY = 'your secret key'
-    AWS_STORAGE_BUCKET_NAME = 'your bucket name'
+or if you are using Django, simply:
 
-in your code::
+Django Setup
+------------
+    >>> S3UTILS_DEBUG_LEVEL=1
+    >>> AWS_ACCESS_KEY_ID = 'your access key'
+    >>> AWS_SECRET_ACCESS_KEY = 'your secret key'
+    >>> AWS_STORAGE_BUCKET_NAME = 'your bucket name'
 
-    from s3utils import S3utils
-    s3utils = S3utils()
+And in your code:
+    >>> from s3utils import S3utils
+    >>> s3utils = S3utils()
 
-**************
-Setup manually
-**************
-
-in your code::
-
-    from s3utils import S3utils
-    s3utils = S3utils(
-    AWS_ACCESS_KEY_ID = 'your access key',
-    AWS_SECRET_ACCESS_KEY = 'your secret key',
-    AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-    S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-    )
+If you want to overwrite your bucket name in your code from what it is in the Django settings:
+    >>> from s3utils import S3utils
+    >>> s3utils = S3utils(AWS_STORAGE_BUCKET_NAME='some other bucket')
 
 
+********
+Commands
+********
+
+The commands are made to be similar to Linux file commands:
+
+cp, mv, chmod, ls, ll, echo, mkdir, rm
+
+There are some Cloudfront specific commands too:
+
+invalidate
 
 *************
-S3utils 0.5
+S3utils 0.6.0
 *************
 
 .. toctree::

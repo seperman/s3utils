@@ -34,7 +34,7 @@ except:
         AWS_SECRET_ACCESS_KEY = ""
         AWS_STORAGE_BUCKET_NAME = ""
         MEDIA_ROOT = ""
-        MEDIA_ROOT_BASE = ""
+        S3_ROOT_BASE = ""
         S3UTILS_DEBUG_LEVEL = 0
 
 # Set default logging handler to avoid "No handler found" warnings.
@@ -92,50 +92,35 @@ class S3utils(object):
     S3 utils methods are made similar to Linux commands
     so it is easier to use/remember for simple file operations
     on S3 buckets.
-
-    Setup
-    -----
-        >>> from s3utils import S3utils
-        >>> s3utils = S3utils(
-        ... AWS_ACCESS_KEY_ID = 'your access key',
-        ... AWS_SECRET_ACCESS_KEY = 'your secret key',
-        ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-        ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-        ... )
-
-    or if you are using Django, simply:
-
-    Django Setup
-    ------------
-        S3UTILS_DEBUG_LEVEL=1
-        AWS_ACCESS_KEY_ID = 'your access key'
-        AWS_SECRET_ACCESS_KEY = 'your secret key'
-        AWS_STORAGE_BUCKET_NAME = 'your bucket name'
-
-    And in your code:
-        >>> from s3utils import S3utils
-        >>> s3utils = S3utils()
-
-    If you want to overwrite your bucket name in your code from what it is in the Django settings:
-        >>> from s3utils import S3utils
-        >>> s3utils = S3utils(AWS_STORAGE_BUCKET_NAME='some other bucket')
-
     """
 
     def __init__(
         self, AWS_ACCESS_KEY_ID=getattr(settings, "AWS_ACCESS_KEY_ID", ""),
         AWS_SECRET_ACCESS_KEY=getattr(settings, "AWS_SECRET_ACCESS_KEY", ""),
         AWS_STORAGE_BUCKET_NAME=getattr(settings, "AWS_STORAGE_BUCKET_NAME", ""),
-        MEDIA_ROOT=getattr(settings, "MEDIA_ROOT", ""),
-        MEDIA_ROOT_BASE=getattr(settings, "MEDIA_ROOT_BASE", ""),
         S3UTILS_DEBUG_LEVEL=getattr(settings, "S3UTILS_DEBUG_LEVEL", 0),
     ):
+        """
+        Parameters
+        ----------
+
+        AWS_ACCESS_KEY_ID : string
+            AWS Access key. If it is defined in your Django settings, it will grab it from there.
+            Otherwise you need to specify it here.
+
+        AWS_SECRET_ACCESS_KEY : string
+            AWS secret. If it is defined in your Django settings, it will grab it from there.
+            Otherwise you need to specify it here.
+
+        AWS_STORAGE_BUCKET_NAME : string
+            AWS Bucket name. If it is defined in your Django settings, it will grab it from there.
+            Otherwise you need to specify it here.
+
+        """
 
         self.AWS_ACCESS_KEY_ID = AWS_ACCESS_KEY_ID
         self.AWS_SECRET_ACCESS_KEY = AWS_SECRET_ACCESS_KEY
         self.AWS_STORAGE_BUCKET_NAME = AWS_STORAGE_BUCKET_NAME
-        self.MEDIA_ROOT = MEDIA_ROOT
-        self.MEDIA_ROOT_BASE = MEDIA_ROOT_BASE
         self.S3UTILS_DEBUG_LEVEL = S3UTILS_DEBUG_LEVEL
         self.conn = None
         self.conn_cloudfront = None
@@ -159,7 +144,11 @@ class S3utils(object):
             logger.info(msg)
 
     def connect(self):
-        "Establish the connection. This is normally done automatically."
+        """
+        Establish the connection. This is done automatically for you.
+
+        If you lose the connection, you can manually run this to be re-connected.
+        """
         self.conn = boto.connect_s3(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.S3UTILS_DEBUG_LEVEL)
 
         self.bucket = self.conn.get_bucket(self.AWS_STORAGE_BUCKET_NAME)
@@ -176,7 +165,7 @@ class S3utils(object):
         self.conn = None
 
     def connect_cloudfront(self):
-        "Connect to cloud."
+        "Connect to Cloud Front. This is done automatically for you when needed."
         self.conn_cloudfront = connect_cloudfront(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.S3UTILS_DEBUG_LEVEL)
 
     @connectit
@@ -253,7 +242,7 @@ class S3utils(object):
     def cp(self, local_path, target_path, acl='public-read',
            del_after_upload=False, overwrite=True, invalidate=False):
         """
-        Copy a file or folder from local to s3
+        Copy a file or folder from local to s3.
 
         Parameters
         ----------
@@ -377,7 +366,7 @@ class S3utils(object):
                                 failed_to_copy_files.add(a_file)
                         else:
                             existing_files.add(a_file)
-                            self.printv("%s already exist. Not overwriting." % target_file)
+                            logger.error("%s already exist. Not overwriting.", target_file)
 
                         if overwrite and target_file in list_of_files and invalidate:
                             files_to_be_invalidated.append(target_file)
@@ -460,6 +449,12 @@ class S3utils(object):
         result = None
         if target_path.endswith('/') or target_path.endswith('*'):
             raise InvalidS3Path("path on S3 can not end in /")
+        if not overwrite:
+            file_exists = self.ls(target_path)
+            if file_exists:
+                logger.error("%s already exist. Not overwriting.", target_path)
+                return {'existing_files': target_path}
+
         if content:
             if isinstance(content, strings):
                 result = self.__put_key(content, target_path, acl='public-read',
@@ -479,14 +474,6 @@ class S3utils(object):
 
         Examples
         --------
-
-            >>> from s3utils import S3utils
-            >>> s3utils = S3utils(
-            ... AWS_ACCESS_KEY_ID = 'your access key',
-            ... AWS_SECRET_ACCESS_KEY = 'your secret key',
-            ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-            ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-            ... )
             >>> s3utils.mv("path/to/folder","/test/")
             moving /path/to/myfolder/test2.txt to test/myfolder/test2.txt
             moving /path/to/myfolder/test.txt to test/myfolder/test.txt
@@ -498,8 +485,25 @@ class S3utils(object):
 
     @connectit
     def cp_cropduster_image(self, the_image_path, del_after_upload=False, overwrite=False, invalidate=False):
-        """Deal with cropduster images saving to S3"""
-        # logger.info("CKeditor the_image_path: %s" % the_image_path)
+        """
+        Deal with saving cropduster images to S3. Cropduster is a Django library for resizing editorial images.
+        S3utils was originally written to put cropduster images on S3 bucket.
+
+        Extra Items in your Django Settings
+        -----------------------------------
+
+        MEDIA_ROOT : string
+            Django media root.
+            Currently it is ONLY used in cp_cropduster_image method.
+            NOT any other method as this library was originally made to put Django cropduster images on s3 bucket.
+
+        S3_ROOT_BASE : string
+            S3 media root base. This will be the root folder in S3.
+            Currently it is ONLY used in cp_cropduster_image method.
+            NOT any other method as this library was originally made to put Django cropduster images on s3 bucket.
+
+
+        """
 
         local_file = os.path.join(settings.MEDIA_ROOT, the_image_path)
 
@@ -510,14 +514,14 @@ class S3utils(object):
             the_image_crops_path_full_path = os.path.join(settings.MEDIA_ROOT, the_image_crops_path)
 
             self.cp(local_path=local_file,
-                    target_path=os.path.join(settings.MEDIA_ROOT_BASE, the_image_path),
+                    target_path=os.path.join(settings.S3_ROOT_BASE, the_image_path),
                     del_after_upload=del_after_upload,
                     overwrite=overwrite,
                     invalidate=invalidate,
                     )
 
             self.cp(local_path=the_image_crops_path_full_path + "/*",
-                    target_path=os.path.join(settings.MEDIA_ROOT_BASE, the_image_crops_path),
+                    target_path=os.path.join(settings.S3_ROOT_BASE, the_image_crops_path),
                     del_after_upload=del_after_upload,
                     overwrite=overwrite,
                     invalidate=invalidate,
@@ -574,14 +578,6 @@ class S3utils(object):
 
         Examples
         --------
-
-            >>> from s3utils import S3utils
-            >>> s3utils = S3utils(
-            ... AWS_ACCESS_KEY_ID = 'your access key',
-            ... AWS_SECRET_ACCESS_KEY = 'your secret key',
-            ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-            ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-            ... )
             >>> s3utils.chmod("path/to/file","private")
 
 
@@ -649,7 +645,9 @@ class S3utils(object):
 
     def ll(self, folder="", begin_from_file="", num=-1, all_grant_data=False):
         """
-        Get the list of files and permissions from S3
+        Get the list of files and permissions from S3.
+
+        This is similar to LL (ls -lah) in Linux: List of files with permissions.
 
         Parameters
         ----------
