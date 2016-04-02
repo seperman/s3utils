@@ -46,6 +46,20 @@ class S3utilsTestCase(unittest.TestCase):
         self.assertEqual(remote_files_names, [])
 
     @mock_s3
+    def test_cp_overwrite_fails(self):
+        self.setup_bucket()
+
+        filecontent_local = "some content not to be overwritten"
+        key = "somewhere_remote/test_file_for_s3.txt"
+        self.k.key = key
+        self.k.set_contents_from_string(filecontent_local)
+
+        self.copy_base(action='cp', overwrite=False)
+
+        remote_content = self.bucket.get_key(key).get_contents_as_string()
+        self.assertEqual(filecontent_local, remote_content.decode('utf-8'))
+
+    @mock_s3
     def test_rm_folder(self):
         self.setup_bucket()
 
@@ -84,7 +98,7 @@ class S3utilsTestCase(unittest.TestCase):
         remote_folder = next(iter(remote_files)).name
         self.assertEqual(remote_folder, "folder/")
 
-    def copy_base(self, action):
+    def copy_base(self, action, overwrite=True):
         self.setup_bucket()
 
         filename = 'test_file_for_s3.txt'
@@ -97,14 +111,15 @@ class S3utilsTestCase(unittest.TestCase):
             f.write(filecontent)
 
         s3utils = S3utils(AWS_STORAGE_BUCKET_NAME='testbucket')
-        getattr(s3utils, action)(filepath_local, filepath_remote)
+        getattr(s3utils, action)(filepath_local, filepath_remote, overwrite=overwrite)
 
         remote_files = self.bucket.list(prefix='', marker='')
-        remote_folder = next(iter(remote_files)).name
-        self.assertEqual(remote_folder, filepath_remote_on_s3)
+        remote_file = next(iter(remote_files)).name
+        self.assertEqual(remote_file, filepath_remote_on_s3)
 
-        remote_content = self.bucket.get_key(filepath_remote_on_s3).get_contents_as_string()
-        self.assertEqual(filecontent, remote_content.decode('utf-8'))
+        if overwrite:
+            remote_content = self.bucket.get_key(filepath_remote_on_s3).get_contents_as_string()
+            self.assertEqual(filecontent, remote_content.decode('utf-8'))
 
         return filepath_local
 
