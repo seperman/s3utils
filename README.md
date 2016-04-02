@@ -12,6 +12,11 @@ The s3utils methods are made to be just like Linux commands so it is easy to rem
 
 Behind the scene it is a light Python wrapper around Amazon Boto library.
 
+## Supported Python versions
+
+Python 2.7, 3.3, 3.4 and 3.5 are supported.
+
+
 ## Documentation
 * [Documentations](http://s3utils.readthedocs.org/en/latest/)
 
