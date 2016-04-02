@@ -13,7 +13,7 @@ import unittest
 import boto
 from boto.s3.key import Key
 from moto import mock_s3
-from s3utils import S3utils, InvalidS3Path
+from s3utils import S3utils
 from sys import version
 
 py3 = version[0] == '3'
@@ -200,5 +200,5 @@ class S3utilsTestCase(unittest.TestCase):
         filepath_remote_on_s3 = 'somewhere_remote/'
 
         s3utils = S3utils(AWS_STORAGE_BUCKET_NAME='testbucket')
-        with self.assertRaises(InvalidS3Path):
-            s3utils.echo(filecontent, filepath_remote_on_s3)
+        result = s3utils.echo(filecontent, filepath_remote_on_s3)
+        self.assertEqual(result, {'InvalidS3Path': "Path on S3 can not end in /"})

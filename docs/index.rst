@@ -6,7 +6,7 @@
 Welcome to S3utils's documentation!
 ===================================
 
-** S3utils deals with files on Amazon S3 Bucket **
+**S3utils is a simple interface for dealing with Amazon S3**
 
 ************
 Installation
@@ -88,5 +88,7 @@ Author
 ==================
 
 Seperman (Sep Ehr)
-`Github <https://github.com/seperman>`_
-`Linkedin <http://www.linkedin.com/in/sepehr>`_
+
+* `Zepworks <http://zepworks.com>`_
+* `Github <https://github.com/seperman>`_
+* `Linkedin <http://www.linkedin.com/in/sepehr>`_

@@ -10,7 +10,7 @@ from functools import wraps  # deals with decorats shpinx documentation
 
 from sys import version
 
-__all__ = ['S3utils', 'InvalidS3Path']
+__all__ = ['S3utils']
 
 py_major_version = version[0]
 py_minor_version = version[2]
@@ -77,10 +77,6 @@ def connectit_cloudfront(fn):
         return result
 
     return wrapped
-
-
-class InvalidS3Path(Exception):
-    pass
 
 
 class S3utils(object):
@@ -221,7 +217,6 @@ class S3utils(object):
                 self.k.set_contents_from_string(local_file)
             else:
                 raise Exception("%s is not implemented as a source." % source)
-            logger.info("uploaded to s3: %s" % target_file)
             self.k.set_acl(acl)  # setting the file permissions
             self.k.close()  # not sure if it is needed. Somewhere I read it is recommended.
 
@@ -278,7 +273,9 @@ class S3utils(object):
             Note that invalidation might take up to 15 minutes to take place. It is easier and faster to use cache buster
             to grab lastest version of your file on CDN than invalidation.
 
+        **Returns**
 
+        Nothing on success but it will return what went wrong if something fails.
 
         Examples
         --------
@@ -288,23 +285,28 @@ class S3utils(object):
             copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
             copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
 
-            >>> # When overwrite is set to False:
-            >>> s3utils.cp("path/to/folder","/test/", overwrite=False)
-            test/myfolder/test2.txt already exist. Not overwriting.
-            test/myfolder/test.txt already exist. Not overwriting.
-            test/myfolder/hoho/photo.JPG already exist. Not overwriting.
-            test/myfolder/hoho/haha/ff already exist. Not overwriting.
+            >>> # When overwrite is set to False, it returns the file(s) that were already existing on s3 and were not overwritten.
+            >>> s3utils.cp("/tmp/test3.txt", "test3.txt", overwrite=False)
+            ERROR:root:test3.txt already exist. Not overwriting.
+            >>> {'existing_files': {'test3.txt'}}
 
             >>> # To overwrite the files on S3 and invalidate the CDN (cloudfront) cache so the new file goes on CDN:
-            >>> s3utils.cp("path/to/folder","/test/", overwrite=True, invalidate=True)
+            >>> s3utils.cp("path/to/folder","/test/", invalidate=True)
             copying /path/to/myfolder/test2.txt to test/myfolder/test2.txt
             copying /path/to/myfolder/test.txt to test/myfolder/test.txt
             copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
             copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
-        """
 
+            >>> # When file does not exist, it returns a dictionary of what went wrong.
+            >>> s3utils.cp("/tmp/does_not_exist", "somewhere")
+            ERROR:root:trying to upload to s3 but file doesn't exist: /tmp/does_not_exist
+            >>> {'file_does_not_exist': '/tmp/does_not_exist'}
+        """
         result = None
-        list_of_files = self.ls(folder=target_path, begin_from_file="", num=-1, get_grants=False, all_grant_data=False)
+        if overwrite:
+            list_of_files = []
+        else:
+            list_of_files = self.ls(folder=target_path, begin_from_file="", num=-1, get_grants=False, all_grant_data=False)
 
         # copying the contents of the folder and not folder itself
         if local_path.endswith("/*"):
@@ -335,6 +337,25 @@ class S3utils(object):
         failed_to_copy_files = set([])
         existing_files = set([])
 
+        def check_for_overwrite_then_write():
+
+            if overwrite or (not overwrite and target_file not in list_of_files):
+                success = self.__put_key(
+                    local_file,
+                    target_file=target_file,
+                    acl=acl,
+                    del_after_upload=del_after_upload,
+                    overwrite=overwrite,
+                )
+                if not success:
+                    failed_to_copy_files.add(target_file)
+            else:
+                existing_files.add(target_file)
+                logger.error("%s already exist. Not overwriting.", target_file)
+
+            if overwrite and target_file in list_of_files and invalidate:
+                files_to_be_invalidated.append(target_file)
+
         first_local_root = None
 
         # if it is a folder
@@ -349,27 +370,12 @@ class S3utils(object):
                 if files:
                     # iterating over the files in the folder
                     for a_file in files:
+                        local_file = os.path.join(local_root, a_file)
                         target_file = os.path.join(
                             target_path + local_root.replace(first_local_root, ""),
                             a_file
                         )
-
-                        if overwrite or (not overwrite and target_file not in list_of_files):
-                            success = self.__put_key(
-                                os.path.join(local_root, a_file),
-                                target_file=target_file,
-                                acl=acl,
-                                del_after_upload=del_after_upload,
-                                overwrite=overwrite,
-                            )
-                            if not success:
-                                failed_to_copy_files.add(a_file)
-                        else:
-                            existing_files.add(a_file)
-                            logger.error("%s already exist. Not overwriting.", target_file)
-
-                        if overwrite and target_file in list_of_files and invalidate:
-                            files_to_be_invalidated.append(target_file)
+                        check_for_overwrite_then_write()
 
                 # if folder is empty
                 else:
@@ -383,11 +389,9 @@ class S3utils(object):
 
         # if it is a file
         else:
-            success = self.__put_key(local_path, target_path, acl=acl, del_after_upload=del_after_upload, overwrite=overwrite)
-            if not success:
-                failed_to_copy_files.add(a_file)
-            if overwrite and target_path in list_of_files and invalidate:
-                files_to_be_invalidated.append(target_path)
+            local_file = local_path
+            target_file = target_path
+            check_for_overwrite_then_write()
 
         if invalidate and files_to_be_invalidated:
             self.invalidate(files_to_be_invalidated)
@@ -436,32 +440,41 @@ class S3utils(object):
             invalidates the CDN (a.k.a Distribution) cache if the file already exists on S3
             default = False
             Note that invalidation might take up to 15 minutes to take place. It is easier and faster to use cache buster
-            to grab lastest version of your file on CDN than invalidation.
+            to serve the lastest version of your file on CDN than invalidation.
 
 
+        **Returns:**
+
+        Nothing on success, otherwise what went wrong.
+
+        Return type:
+        dict
 
         Examples
         --------
+            >>> # On success returns nothing:
             >>> s3utils.echo("Hello World!","/test.txt")
-
+            >>> # On failure returns what went wrong
+            >>> s3utils.echo("Hello World!","/test/")
+            {'InvalidS3Path': "path on S3 can not end in /"}
         """
 
         result = None
         if target_path.endswith('/') or target_path.endswith('*'):
-            raise InvalidS3Path("path on S3 can not end in /")
-        if not overwrite:
+            result = {'InvalidS3Path': "Path on S3 can not end in /"}
+        if not overwrite and not result:
             file_exists = self.ls(target_path)
             if file_exists:
                 logger.error("%s already exist. Not overwriting.", target_path)
-                return {'existing_files': target_path}
+                result = {'existing_files': target_path}
 
-        if content:
+        if content and not result:
             if isinstance(content, strings):
                 result = self.__put_key(content, target_path, acl='public-read',
                                         del_after_upload=False, overwrite=True,
                                         source="string")
             else:
-                raise TypeError("Content is not string")
+                result = {"TypeError": "Content is not string"}
         return result
 
     def mv(self, local_file, target_file, acl='public-read', overwrite=True, invalidate=False):
@@ -479,6 +492,13 @@ class S3utils(object):
             moving /path/to/myfolder/test.txt to test/myfolder/test.txt
             moving /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
             moving /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
+
+        **Returns:**
+
+        Nothing on success, otherwise what went wrong.
+
+        Return type:
+        dict
 
         """
         self.cp(local_file, target_file, acl=acl, del_after_upload=True, overwrite=overwrite, invalidate=invalidate)
