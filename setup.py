@@ -1,11 +1,16 @@
 import os
 from setuptools import setup  # , find_packages
 
+# if you are not using vagrant, just delete os.link directly,
+# The hard link only saves a little disk space, so you should not care
+if os.environ.get('USER', '') == 'vagrant':
+    del os.link
+
 try:
-    with open('README.md') as file:
+    with open('README.txt') as file:
         long_description = file.read()
 except:
-    long_description = "S3 Utils deals with Amazon S3 buckets"
+    long_description = "S3utils is a simple interface to Amazon S3 Buckets."
 
 test_requirements = ['moto==0.4.23']
 
