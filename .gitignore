@@ -51,6 +51,7 @@ Thumbs.db
 # C extensions
 *.so
 
+docs/_build
 # Packages
 *.egg
 *.egg-info

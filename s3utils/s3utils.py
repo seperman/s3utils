@@ -10,6 +10,8 @@ from functools import wraps  # deals with decorats shpinx documentation
 
 from sys import version
 
+__all__ = ['S3utils', 'InvalidS3Path']
+
 py_major_version = version[0]
 py_minor_version = version[2]
 
@@ -75,6 +77,10 @@ def connectit_cloudfront(fn):
         return result
 
     return wrapped
+
+
+class InvalidS3Path(Exception):
+    pass
 
 
 class S3utils(object):
@@ -209,12 +215,12 @@ class S3utils(object):
         else:
             logger.error("There was nothing to remove under %s", path)
 
+    @connectit
     def __put_key(self, local_file, target_file, acl='public-read', del_after_upload=False, overwrite=True, source="filename"):
         """Copy a file to s3."""
         action_word = "moving" if del_after_upload else "copying"
 
         try:
-
             self.k.key = target_file  # setting the path (key) of file in the container
 
             if source == "filename":
@@ -335,7 +341,6 @@ class S3utils(object):
 
         return result
 
-    @connectit
     def __find_files_and_copy(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False, list_of_files=[]):
         files_to_be_invalidated = []
         failed_to_copy_files = set([])
@@ -453,11 +458,13 @@ class S3utils(object):
         """
 
         result = None
+        if target_path.endswith('/') or target_path.endswith('*'):
+            raise InvalidS3Path("path on S3 can not end in /")
         if content:
             if isinstance(content, strings):
                 result = self.__put_key(content, target_path, acl='public-read',
                                         del_after_upload=False, overwrite=True,
-                                        invalidate=False, source="string")
+                                        source="string")
             else:
                 raise TypeError("Content is not string")
         return result

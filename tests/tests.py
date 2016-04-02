@@ -13,7 +13,7 @@ import unittest
 import boto
 from boto.s3.key import Key
 from moto import mock_s3
-from s3utils import S3utils
+from s3utils import S3utils, InvalidS3Path
 from sys import version
 
 py3 = version[0] == '3'
@@ -70,7 +70,7 @@ class S3utilsTestCase(unittest.TestCase):
         s3utils.mkdir("folder")
 
         remote_files = self.bucket.list(prefix='', marker='')
-        remote_folder = [i.name for i in remote_files][0]
+        remote_folder = next(iter(remote_files)).name
         self.assertEqual(remote_folder, "folder/")
 
     @mock_s3
@@ -81,7 +81,7 @@ class S3utilsTestCase(unittest.TestCase):
         s3utils.mkdir("/folder/")
 
         remote_files = self.bucket.list(prefix='', marker='')
-        remote_folder = [i.name for i in remote_files][0]
+        remote_folder = next(iter(remote_files)).name
         self.assertEqual(remote_folder, "folder/")
 
     def copy_base(self, action):
@@ -100,7 +100,7 @@ class S3utilsTestCase(unittest.TestCase):
         getattr(s3utils, action)(filepath_local, filepath_remote)
 
         remote_files = self.bucket.list(prefix='', marker='')
-        remote_folder = [i.name for i in remote_files][0]
+        remote_folder = next(iter(remote_files)).name
         self.assertEqual(remote_folder, filepath_remote_on_s3)
 
         remote_content = self.bucket.get_key(filepath_remote_on_s3).get_contents_as_string()
@@ -173,3 +173,32 @@ class S3utilsTestCase(unittest.TestCase):
     def test_cp_folder_that_does_not_exist(self):
         folder_local, s3utils_result = self.copy_folder_base(action='cp', folder='/tmp/test_s3_folder_that_does_not_exist/', filepath_remote_prefix='')
         self.assertEqual(s3utils_result, {'file_does_not_exist': '/tmp/test_s3_folder_that_does_not_exist'})
+
+    @mock_s3
+    def test_echo(self):
+        self.setup_bucket()
+
+        filename = 'test_file_for_s3.txt'
+        filecontent = 'this is the first line added using python'
+        filepath_remote_on_s3 = 'somewhere_remote/%s' % filename
+
+        s3utils = S3utils(AWS_STORAGE_BUCKET_NAME='testbucket')
+        s3utils.echo(filecontent, filepath_remote_on_s3)
+
+        remote_files = self.bucket.list(prefix='', marker='')
+        remote_file = next(iter(remote_files)).name
+        self.assertEqual(remote_file, filepath_remote_on_s3)
+
+        remote_content = self.bucket.get_key(filepath_remote_on_s3).get_contents_as_string()
+        self.assertEqual(filecontent, remote_content.decode('utf-8'))
+
+    @mock_s3
+    def test_echo_with_invalid_path(self):
+        self.setup_bucket()
+
+        filecontent = 'this is the first line added using python'
+        filepath_remote_on_s3 = 'somewhere_remote/'
+
+        s3utils = S3utils(AWS_STORAGE_BUCKET_NAME='testbucket')
+        with self.assertRaises(InvalidS3Path):
+            s3utils.echo(filecontent, filepath_remote_on_s3)

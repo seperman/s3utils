@@ -1,1 +1,1 @@
-from .s3utils import S3utils
+from .s3utils import *
