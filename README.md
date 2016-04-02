@@ -6,7 +6,7 @@
 [![Build Status](https://travis-ci.org/seperman/s3utils.svg?branch=master)](https://travis-ci.org/seperman/s3utils)
 
 User friendly interface to deal with Amazon S3 bucket and Cloud Front in Python.
-I wrote this since s3cmd is for commandline usage and the other libraries out there seemed to be not maintained anymore.
+I wrote this since s3cmd is for commandline usage and the other libraries out there seemed not maintained anymore. This is basically a higher level interface to S3 than boto. Easier to use, but way less options.
 
 The s3utils methods are made to be just like Linux commands so it is easy to remember and use.
 
@@ -27,15 +27,25 @@ Install from PyPi:
 
     pip install s3utils
 
+
 ## Setup
 
-## Example setup in Django
+```python
+>>> from s3utils import S3utils
+>>> s3utils = S3utils(
+... AWS_ACCESS_KEY_ID = 'your access key',
+... AWS_SECRET_ACCESS_KEY = 'your secret key',
+... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
+... S3UTILS_DEBUG_LEVEL = 1,  # change it to 0 for less verbose
+... )
+```
 
+### Django Setup
 
 in your settings file::
 
 ```python
-S3UTILS_DEBUG_LEVEL=1
+S3UTILS_DEBUG_LEVEL = 1  # change it to 0 for less verbose
 AWS_ACCESS_KEY_ID = 'your access key'
 AWS_SECRET_ACCESS_KEY = 'your secret key'
 AWS_STORAGE_BUCKET_NAME = 'your bucket name'
@@ -46,28 +56,13 @@ in your code::
 ```python
 >>> from s3utils import S3utils
 >>> s3utils = S3utils()
->>> s3utils.cp("path/to/folder","/test/")
-copying /path/to/myfolder/test2.txt to test/myfolder/test2.txt
-copying /path/to/myfolder/test.txt to test/myfolder/test.txt
-copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
-copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
 ```
 
-## Example manual setup
+If you want to overwrite your bucket name in your code from what it is in the Django settings:
 
 ```python
 >>> from s3utils import S3utils
->>> s3utils = S3utils(
-... AWS_ACCESS_KEY_ID = 'your access key',
-... AWS_SECRET_ACCESS_KEY = 'your secret key',
-... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-... )
->>> s3utils.cp("path/to/folder","/test/")
-copying /path/to/myfolder/test2.txt to test/myfolder/test2.txt
-copying /path/to/myfolder/test.txt to test/myfolder/test.txt
-copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
-copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
+>>> s3utils = S3utils(AWS_STORAGE_BUCKET_NAME='some other bucket')
 ```
 
 ## Mkdir

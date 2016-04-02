@@ -8,6 +8,22 @@ from shutil import rmtree
 from collections import Iterable, OrderedDict
 from functools import wraps  # deals with decorats shpinx documentation
 
+from sys import version
+
+py_major_version = version[0]
+py_minor_version = version[2]
+
+py3 = py_major_version == '3'
+
+if (py_major_version, py_minor_version) == (2.6):
+    from sys import exit
+    exit('Python 2.6 is not supported.')
+
+if py3:
+    strings = (str, bytes)  # which are both basestring
+else:
+    strings = (str, unicode)
+
 try:
     from django.conf import settings
 except:
@@ -63,6 +79,43 @@ def connectit_cloudfront(fn):
 
 class S3utils(object):
 
+    """
+    S3 Utils
+
+    A simple user friendly interface to Amazon S3.
+    S3 utils methods are made similar to Linux commands
+    so it is easier to use/remember for simple file operations
+    on S3 buckets.
+
+    Setup
+    -----
+        >>> from s3utils import S3utils
+        >>> s3utils = S3utils(
+        ... AWS_ACCESS_KEY_ID = 'your access key',
+        ... AWS_SECRET_ACCESS_KEY = 'your secret key',
+        ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
+        ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
+        ... )
+
+    or if you are using Django, simply:
+
+    Django Setup
+    ------------
+        S3UTILS_DEBUG_LEVEL=1
+        AWS_ACCESS_KEY_ID = 'your access key'
+        AWS_SECRET_ACCESS_KEY = 'your secret key'
+        AWS_STORAGE_BUCKET_NAME = 'your bucket name'
+
+    And in your code:
+        >>> from s3utils import S3utils
+        >>> s3utils = S3utils()
+
+    If you want to overwrite your bucket name in your code from what it is in the Django settings:
+        >>> from s3utils import S3utils
+        >>> s3utils = S3utils(AWS_STORAGE_BUCKET_NAME='some other bucket')
+
+    """
+
     def __init__(
         self, AWS_ACCESS_KEY_ID=getattr(settings, "AWS_ACCESS_KEY_ID", ""),
         AWS_SECRET_ACCESS_KEY=getattr(settings, "AWS_SECRET_ACCESS_KEY", ""),
@@ -111,14 +164,13 @@ class S3utils(object):
         """
         Close the connection.
 
-        This is normally done automatically but you need to
-        use this to close the connection if you manually started the connection using the connect() method.
+        This is normally done automatically when the garbage collector is deleting s3utils object.
         """
         self.bucket.connection.connection.close()
         self.conn = None
 
     def connect_cloudfront(self):
-        "Connect to cloud front which is more control than just S3. This is done automatically for you."
+        "Connect to cloud."
         self.conn_cloudfront = connect_cloudfront(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, debug=self.S3UTILS_DEBUG_LEVEL)
 
     @connectit
@@ -128,13 +180,6 @@ class S3utils(object):
 
         Examples
         --------
-            >>> from s3utils import S3utils
-            >>> s3utils = S3utils(
-            ... AWS_ACCESS_KEY_ID = 'your access key',
-            ... AWS_SECRET_ACCESS_KEY = 'your secret key',
-            ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-            ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-            ... )
             >>> s3utils.mkdir("path/to/my_folder")
             Making directory: path/to/my_folder
         """
@@ -143,22 +188,51 @@ class S3utils(object):
         self.k.set_contents_from_string('')
         self.k.close()
 
-    def __cp_file(self, local_file, target_file, acl='public-read', del_after_upload=False, overwrite=True):
+    @connectit
+    def rm(self, path):
+        """
+        Delete the path and anything under the path.
+
+        Example
+        -------
+            >>> s3utils.rm("path/to/file_or_folder")
+        """
+
+        list_of_files = list(self.ls(path))
+
+        if list_of_files:
+            if len(list_of_files) == 1:
+                self.bucket.delete_key(list_of_files[0])
+            else:
+                self.bucket.delete_keys(list_of_files)
+            self.printv("Deleted: %s" % list_of_files)
+        else:
+            logger.error("There was nothing to remove under %s", path)
+
+    def __put_key(self, local_file, target_file, acl='public-read', del_after_upload=False, overwrite=True, source="filename"):
         """Copy a file to s3."""
         action_word = "moving" if del_after_upload else "copying"
 
         try:
 
             self.k.key = target_file  # setting the path (key) of file in the container
-            # grabs the contents from local_file address. Note that it loads the whole file into memory
-            self.k.set_contents_from_filename(local_file)
+
+            if source == "filename":
+                # grabs the contents from local_file address. Note that it loads the whole file into memory
+                self.k.set_contents_from_filename(local_file)
+            elif source == "fileobj":
+                self.k.set_contents_from_file(local_file)
+            elif source == "string":
+                self.k.set_contents_from_string(local_file)
+            else:
+                raise Exception("%s is not implemented as a source." % source)
             logger.info("uploaded to s3: %s" % target_file)
             self.k.set_acl(acl)  # setting the file permissions
             self.k.close()  # not sure if it is needed. Somewhere I read it is recommended.
 
             self.printv("%s %s to %s" % (action_word, local_file, target_file))
             # if it is supposed to delete the local file after uploading
-            if del_after_upload:
+            if del_after_upload and source == "filename":
                 try:
                     os.remove(local_file)
                 except:
@@ -213,13 +287,6 @@ class S3utils(object):
 
         Examples
         --------
-            >>> from s3utils import S3utils
-            >>> s3utils = S3utils(
-            ... AWS_ACCESS_KEY_ID = 'your access key',
-            ... AWS_SECRET_ACCESS_KEY = 'your secret key',
-            ... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-            ... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-            ... )
             >>> s3utils.cp("path/to/folder","/test/")
             copying /path/to/myfolder/test2.txt to test/myfolder/test2.txt
             copying /path/to/myfolder/test.txt to test/myfolder/test.txt
@@ -239,8 +306,6 @@ class S3utils(object):
             copying /path/to/myfolder/test.txt to test/myfolder/test.txt
             copying /path/to/myfolder/hoho/photo.JPG to test/myfolder/hoho/photo.JPG
             copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
-
-
         """
 
         result = None
@@ -262,7 +327,7 @@ class S3utils(object):
 
         if os.path.exists(local_path):
 
-            result = self.__copy_path(local_path, target_path, acl, del_after_upload, overwrite, invalidate, list_of_files)
+            result = self.__find_files_and_copy(local_path, target_path, acl, del_after_upload, overwrite, invalidate, list_of_files)
 
         else:
             result = {'file_does_not_exist': local_path}
@@ -271,7 +336,7 @@ class S3utils(object):
         return result
 
     @connectit
-    def __copy_path(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False, list_of_files=[]):
+    def __find_files_and_copy(self, local_path, target_path, acl='public-read', del_after_upload=False, overwrite=True, invalidate=False, list_of_files=[]):
         files_to_be_invalidated = []
         failed_to_copy_files = set([])
         existing_files = set([])
@@ -296,7 +361,7 @@ class S3utils(object):
                         )
 
                         if overwrite or (not overwrite and target_file not in list_of_files):
-                            success = self.__cp_file(
+                            success = self.__put_key(
                                 os.path.join(local_root, a_file),
                                 target_file=target_file,
                                 acl=acl,
@@ -324,7 +389,7 @@ class S3utils(object):
 
         # if it is a file
         else:
-            success = self.__cp_file(local_path, target_path, acl=acl, del_after_upload=del_after_upload, overwrite=overwrite)
+            success = self.__put_key(local_path, target_path, acl=acl, del_after_upload=del_after_upload, overwrite=overwrite)
             if not success:
                 failed_to_copy_files.add(a_file)
             if overwrite and target_path in list_of_files and invalidate:
@@ -344,8 +409,63 @@ class S3utils(object):
         result = None if result == {} else result
         return result
 
+    def echo(self, content, target_path, acl='public-read',
+             del_after_upload=False, overwrite=True, invalidate=False):
+        """
+
+        Similar to Linux Echo command.
+
+        Puts the string into the target path on s3
+
+        Parameters
+        ----------
+
+        content : string
+            The content to be put on the s3 bucket.
+
+        target_path : string
+            Target path on S3 bucket.
+
+        acl : string, optional
+            File permissions on S3. Default is public-read
+
+            options:
+                - private: Owner gets FULL_CONTROL. No one else has any access rights.
+                - public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
+                - public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
+                - authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
+
+        overwrite : boolean, optional
+            overwrites files on S3 if set to True. Default is True
+
+        invalidate : boolean, optional
+            invalidates the CDN (a.k.a Distribution) cache if the file already exists on S3
+            default = False
+            Note that invalidation might take up to 15 minutes to take place. It is easier and faster to use cache buster
+            to grab lastest version of your file on CDN than invalidation.
+
+
+
+        Examples
+        --------
+            >>> s3utils.echo("Hello World!","/test.txt")
+
+        """
+
+        result = None
+        if content:
+            if isinstance(content, strings):
+                result = self.__put_key(content, target_path, acl='public-read',
+                                        del_after_upload=False, overwrite=True,
+                                        invalidate=False, source="string")
+            else:
+                raise TypeError("Content is not string")
+        return result
+
     def mv(self, local_file, target_file, acl='public-read', overwrite=True, invalidate=False):
         """
+        Similar to Linux mv command.
+
         Move the file to the S3 and deletes the local copy
 
         It is basically s3utils.cp that has del_after_upload=True

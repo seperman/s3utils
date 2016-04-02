@@ -11,6 +11,7 @@ python -m unittest tests.S3utilsTestCase.test_cp_folder_content
 import os
 import unittest
 import boto
+from boto.s3.key import Key
 from moto import mock_s3
 from s3utils import S3utils
 from sys import version
@@ -26,6 +27,40 @@ class S3utilsTestCase(unittest.TestCase):
         self.conn = boto.connect_s3()
         self.conn.create_bucket('testbucket')
         self.bucket = self.conn.get_bucket('testbucket')
+        self.k = Key(self.bucket)
+
+    @mock_s3
+    def test_rm(self):
+        self.setup_bucket()
+
+        key = "somefile.txt"
+        self.k.key = key
+        self.k.set_contents_from_string("some content")
+
+        s3utils = S3utils(AWS_STORAGE_BUCKET_NAME='testbucket')
+        s3utils.rm(key)
+
+        remote_files = self.bucket.list(prefix='', marker='')
+        remote_files_names = [i.name for i in remote_files]
+
+        self.assertEqual(remote_files_names, [])
+
+    @mock_s3
+    def test_rm_folder(self):
+        self.setup_bucket()
+
+        keys = ('/folder/file1.txt', '/folder/file2.txt', '/folder/folder2/file3.txt')
+        for key in keys:
+            self.k.key = key
+            self.k.set_contents_from_string("some content")
+
+        s3utils = S3utils(AWS_STORAGE_BUCKET_NAME='testbucket')
+        s3utils.rm('/folder/')
+
+        remote_files = self.bucket.list(prefix='', marker='')
+        remote_files_names = [i.name for i in remote_files]
+
+        self.assertEqual(remote_files_names, [])
 
     @mock_s3
     def test_mkdir(self):
