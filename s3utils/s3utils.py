@@ -408,7 +408,7 @@ class S3utils(object):
         return result
 
     def echo(self, content, target_path, acl='public-read',
-             del_after_upload=False, overwrite=True, invalidate=False):
+             overwrite=True, invalidate=False):
         """
 
         Similar to Linux Echo command.
@@ -429,7 +429,7 @@ class S3utils(object):
 
             options:
                 - private: Owner gets FULL_CONTROL. No one else has any access rights.
-                - public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
+                - public-read: (Default) Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
                 - public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
                 - authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
 
@@ -445,7 +445,7 @@ class S3utils(object):
 
         **Returns:**
 
-        Nothing on success, otherwise what went wrong.
+        Nothing on success, otherwise it returns what went wrong.
 
         Return type:
         dict
@@ -470,8 +470,8 @@ class S3utils(object):
 
         if content and not result:
             if isinstance(content, strings):
-                result = self.__put_key(content, target_path, acl='public-read',
-                                        del_after_upload=False, overwrite=True,
+                result = self.__put_key(content, target_path, acl=acl,
+                                        del_after_upload=False, overwrite=overwrite,
                                         source="string")
             else:
                 result = {"TypeError": "Content is not string"}

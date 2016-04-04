@@ -18,7 +18,7 @@ test_requirements = ['moto==0.4.23']
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(name='s3utils',
-      version='0.6.0',
+      version='0.6.1',
       description='S3 Utils deals with Amazon S3 buckets',
       url='https://github.com/seperman/s3utils',
       download_url='https://github.com/seperman/s3utils/tarball/master',

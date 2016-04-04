@@ -1,4 +1,4 @@
-# S3 Utils v0.6.0
+# S3 Utils v0.6.1
 
 ![Python Versions](https://img.shields.io/pypi/pyversions/s3utils.svg?style=flat)
 ![Doc](https://readthedocs.org/projects/s3utils/badge/?version=latest)

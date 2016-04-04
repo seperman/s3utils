@@ -63,7 +63,7 @@ There are some Cloudfront specific commands too:
 invalidate
 
 *************
-S3utils 0.6.0
+S3utils 0.6.1
 *************
 
 .. toctree::
