@@ -6,7 +6,7 @@
 [![Build Status](https://travis-ci.org/seperman/s3utils.svg?branch=master)](https://travis-ci.org/seperman/s3utils)
 
 User friendly interface to deal with Amazon S3 bucket and Cloud Front in Python.
-I wrote this since s3cmd is for commandline usage and the other libraries out there seemed not maintained anymore. This is basically a higher level interface to S3 than boto. Easier to use, but way less options.
+I wrote this since s3cmd is for command line usage and the other libraries out there seemed not maintained anymore. This is basically a higher level interface to S3 than boto. Easier to use, but way less options.
 
 The s3utils methods are made to be just like Linux commands so it is easy to remember and use.
 
@@ -30,6 +30,8 @@ Install from PyPi:
 
 ## Setup
 
+### Normal Setup
+
 ```python
 >>> from s3utils import S3utils
 >>> s3utils = S3utils(
@@ -42,7 +44,9 @@ Install from PyPi:
 
 ### Django Setup
 
-in your settings file::
+If you are using s3utils in Django, follow this:
+
+in your settings file:
 
 ```python
 S3UTILS_DEBUG_LEVEL = 1  # change it to 0 for less verbose
@@ -51,87 +55,83 @@ AWS_SECRET_ACCESS_KEY = 'your secret key'
 AWS_STORAGE_BUCKET_NAME = 'your bucket name'
 ```
 
-in your code::
+in your code:
 
 ```python
 >>> from s3utils import S3utils
 >>> s3utils = S3utils()
 ```
 
-If you want to overwrite your bucket name in your code from what it is in the Django settings:
+Later in your code if you want to overwrite your bucket name in your code from what it is in the Django settings:
 
 ```python
 >>> from s3utils import S3utils
 >>> s3utils = S3utils(AWS_STORAGE_BUCKET_NAME='some other bucket')
 ```
 
+# Commands
+
 ## Mkdir
 
-Create a folder on S3.
+So let's start with a simple command: mkdir
+
+Just what you would expect, it creates a folder on S3.
+Example:
 
 ```python
->>> from s3utils import S3utils
->>> s3utils = S3utils(
-... AWS_ACCESS_KEY_ID = 'your access key',
-... AWS_SECRET_ACCESS_KEY = 'your secret key',
-... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-... )
 >>> s3utils.mkdir("path/to/my_folder")
 Making directory: path/to/my_folder
 ```
 
 ## Cp
 
-Copy a file or folder from local to s3
+Copy a file or folder from **local to S3**.
 
-### Parameters
+*Note: As of April 2016, S3utils does not currently support S3 to local direction. I plan to add it in future.*
 
-local_path : string
-Path to file or folder. Or if you want to copy only the contents of folder, add /* at the end of folder name
+### Cp Parameters
 
-target_path : string
-Target path on S3 bucket.
+- local_path : string
 
-acl : string, optional
+    Path to file or folder. Or if you want to copy only the contents of folder, add /* at the end of folder name. Example: `s3utils.cp("/copy/contents/of/*", "/somewhere/on/s3/")`
 
-File permissions on S3. Default is public-read
+- target_path : string
 
-acl options:
+    Target path on S3 bucket.
 
-- private: Owner gets FULL_CONTROL. No one else has any access rights.
-- public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
-- public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
-- authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
+- acl : string, optional
 
-del_after_upload : boolean, optional
+    File permissions on S3. Default is public-read
 
-delete the local file after uploading. This is effectively like moving the file.
-You can use s3utils.mv instead of s3utils.cp to move files from local to S3.
-It basically sets this flag to True.
-default = False
+    acl options:
 
-overwrite : boolean, optional
+    + private: Owner gets FULL_CONTROL. No one else has any access rights.
+    + public-read: Owners gets FULL_CONTROL and the anonymous principal is granted READ access.
+    + public-read-write: Owner gets FULL_CONTROL and the anonymous principal is granted READ and WRITE access.
+    + authenticated-read: Owner gets FULL_CONTROL and any principal authenticated as a registered Amazon S3 user is granted READ access
 
-overwrites files on S3 if set to True. Default is True
+- del_after_upload : boolean, optional
 
-invalidate : boolean, optional
+    delete the local file after uploading. This is effectively like moving the file.
+    You can use s3utils.mv instead of s3utils.cp to move files from local to S3.
+    It basically sets this flag to True.
+    default = False
 
-invalidates the CDN (a.k.a Distribution) cache if the file already exists on S3
-default = False
-Note that invalidation might take up to 15 minutes to take place. It is easier and faster to use cache buster
-to grab lastest version of your file on CDN than invalidation.
+- overwrite : boolean, optional
+
+    overwrites files on S3 if set to True. Default is True
+
+- invalidate : boolean, optional
+
+    invalidates the CDN (a.k.a Distribution) cache if the file already exists on S3
+
+    default = False
+
+    Note that invalidation might take up to 15 minutes to take place. It is easier and faster to use cache buster to grab latest version of your file on CDN than invalidation.
 
 Examples
 
 ```python
->>> from s3utils import S3utils
->>> s3utils = S3utils(
-... AWS_ACCESS_KEY_ID = 'your access key',
-... AWS_SECRET_ACCESS_KEY = 'your secret key',
-... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-... )
 >>> s3utils.cp("path/to/folder","/test/")
 copying /path/to/myfolder/test2.txt to test/myfolder/test2.txt
 copying /path/to/myfolder/test.txt to test/myfolder/test.txt
@@ -157,18 +157,11 @@ copying /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
 
 Move the file to the S3 and deletes the local copy
 
-It is basically s3utils.cp that has del_after_upload=True
+It is basically s3utils.cp that has `del_after_upload=True`
 
 Examples
 
 ```python
->>> from s3utils import S3utils
->>> s3utils = S3utils(
-... AWS_ACCESS_KEY_ID = 'your access key',
-... AWS_SECRET_ACCESS_KEY = 'your secret key',
-... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-... )
 >>> s3utils.mv("path/to/folder","/test/")
 moving /path/to/myfolder/test2.txt to test/myfolder/test2.txt
 moving /path/to/myfolder/test.txt to test/myfolder/test.txt
@@ -178,15 +171,17 @@ moving /path/to/myfolder/hoho/haha/ff to test/myfolder/hoho/haha/ff
 
 ## Chmod
 
-sets permissions for a file on S3
+sets permissions (acl) for a file on S3
 
-Parameters
+### Chmod Parameters
 
-target_file : string
-Path to file on S3
+- target_file : string
 
-acl : string, optional
-File permissions on S3. Default is public-read
+    Path to file on S3
+
+- acl : string, optional
+
+    File permissions on S3. Default is public-read
 
 options:
 
@@ -199,13 +194,6 @@ options:
 Examples
 
 ```python
->>> from s3utils import S3utils
->>> s3utils = S3utils(
-... AWS_ACCESS_KEY_ID = 'your access key',
-... AWS_SECRET_ACCESS_KEY = 'your secret key',
-... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-... )
 >>> s3utils.chmod("path/to/file","private")
 ```
 
@@ -213,30 +201,25 @@ Examples
 
 gets the list of file names (keys) in a s3 folder
 
-Parameters
+### Ls Parameters
 
-folder : string
-Path to file on S3
+- folder : string
 
-num: integer, optional
-number of results to return, by default it returns all results.
+    Path to file on S3
 
-begin_from_file: string, optional
-which file to start from on S3.
-This is usedful in case you are iterating over lists of files and you need to page the result by
-starting listing from a certain file and fetching certain num (number) of files.
+- num: integer, optional
+
+    number of results to return, by default it returns all results.
+
+- begin_from_file: string, optional
+
+    which file to start from on S3.
+    This is useful in case you are iterating over lists of files and you need to page the result by starting listing from a certain file and fetching certain num (number) of files.
 
 
 Examples
 
 ```python
->>> from s3utils import S3utils
->>> s3utils = S3utils(
-... AWS_ACCESS_KEY_ID = 'your access key',
-... AWS_SECRET_ACCESS_KEY = 'your secret key',
-... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-... )
 >>> print s3utils.ls("test/")
 [u'test/myfolder/', u'test/myfolder/em/', u'test/myfolder/hoho/', u'test/myfolder/hoho/.DS_Store', u'test/myfolder/hoho/haha/', u'test/myfolder/hoho/haha/ff', u'test/myfolder/hoho/haha/photo.JPG']
 ```
@@ -245,36 +228,32 @@ Examples
 
 Get the list of files and permissions from S3
 
-Parameters
+### LL Parameters
 
-folder : string
-Path to file on S3
+- folder : string
 
-num: integer, optional
-number of results to return, by default it returns all results.
+    Path to file on S3
 
-begin_from_file : string, optional
-which file to start from on S3.
-This is usedful in case you are iterating over lists of files and you need to page the result by
-starting listing from a certain file and fetching certain num (number) of files.
+- num: integer, optional
 
-all_grant_data : Boolean, optional
-More detailed file permission data will be returned.
+    number of results to return, by default it returns all results.
+
+- begin_from_file : string, optional
+
+    which file to start from on S3.
+
+    This is useful in case you are iterating over lists of files and you need to page the result by starting listing from a certain file and fetching certain num (number) of files.
+
+- all_grant_data : Boolean, optional
+
+    More detailed file permission data will be returned.
 
 Examples
 
 ```python
->>> from s3utils import S3utils
->>> s3utils = S3utils(
-... AWS_ACCESS_KEY_ID = 'your access key',
-... AWS_SECRET_ACCESS_KEY = 'your secret key',
-... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-... )
->>> import json
->>> # We use json.dumps to print the results more readable:
+>>> from pprint import pprint
 >>> my_folder_stuff = s3utils.ll("/test/")
->>> print json.dumps(my_folder_stuff, indent=2)
+>>> pprint(my_folder_stuff, indent=2)
 {
   "test/myfolder/": [
     {
@@ -342,20 +321,13 @@ You can check for the invalidation status using check_invalidation_request.
 Examples
 
 ```python
->>> from s3utils import S3utils
->>> s3utils = S3utils(
-... AWS_ACCESS_KEY_ID = 'your access key',
-... AWS_SECRET_ACCESS_KEY = 'your secret key',
-... AWS_STORAGE_BUCKET_NAME = 'your bucket name',
-... S3UTILS_DEBUG_LEVEL = 1,  #change it to 0 for less verbose
-... )
 >>> aa = s3utils.invalidate("test/myfolder/hoho/photo.JPG")
 >>> print aa
 ('your distro id', u'your request id')
 >>> invalidation_request_id = aa[1]
 >>> bb = s3utils.check_invalidation_request(*aa)
 >>> for inval in bb:
-...     print 'Object: %s, ID: %s, Status: %s' % (inval, inval.id, inval.status)
+...     print('Object: %s, ID: %s, Status: %s' % (inval, inval.id, inval.status))
 ```
 
 ##Author
