@@ -36,6 +36,7 @@ except:
         MEDIA_ROOT = ""
         S3_ROOT_BASE = ""
         S3UTILS_DEBUG_LEVEL = 0
+        AWS_HEADERS = dict()
 
 # Set default logging handler to avoid "No handler found" warnings.
 import logging
@@ -95,6 +96,7 @@ class S3utils(object):
         AWS_SECRET_ACCESS_KEY=getattr(settings, "AWS_SECRET_ACCESS_KEY", ""),
         AWS_STORAGE_BUCKET_NAME=getattr(settings, "AWS_STORAGE_BUCKET_NAME", ""),
         S3UTILS_DEBUG_LEVEL=getattr(settings, "S3UTILS_DEBUG_LEVEL", 0),
+        AWS_HEADERS=getattr(settings, "AWS_HEADERS", {}),
     ):
         """
         Parameters
@@ -118,6 +120,7 @@ class S3utils(object):
         self.AWS_SECRET_ACCESS_KEY = AWS_SECRET_ACCESS_KEY
         self.AWS_STORAGE_BUCKET_NAME = AWS_STORAGE_BUCKET_NAME
         self.S3UTILS_DEBUG_LEVEL = S3UTILS_DEBUG_LEVEL
+        self.AWS_HEADERS = AWS_HEADERS
         self.conn = None
         self.conn_cloudfront = None
 
@@ -210,11 +213,11 @@ class S3utils(object):
 
             if source == "filename":
                 # grabs the contents from local_file address. Note that it loads the whole file into memory
-                self.k.set_contents_from_filename(local_file)
+                self.k.set_contents_from_filename(local_file, self.AWS_HEADERS)
             elif source == "fileobj":
-                self.k.set_contents_from_file(local_file)
+                self.k.set_contents_from_file(local_file, self.AWS_HEADERS)
             elif source == "string":
-                self.k.set_contents_from_string(local_file)
+                self.k.set_contents_from_string(local_file, self.AWS_HEADERS)
             else:
                 raise Exception("%s is not implemented as a source." % source)
             self.k.set_acl(acl)  # setting the file permissions
